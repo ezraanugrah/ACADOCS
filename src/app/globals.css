@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+/* Design tokens Acadocs — pink, putih, hitam */
+@theme {
+  --color-primary: #f64d9b;
+  --color-primary-hover: #ec4593;
+  --color-primary-strong: #c8256f;
+  --color-soft: #fff1f7;
+  --color-soft-strong: #ffe0ee;
+  --color-ink: #171717;
+  --color-ink-muted: #666666;
+  --color-canvas: #fafafa;
+  --color-surface: #ffffff;
+  --color-line: #eeeeee;
+  --color-danger: #dc2626;
+  --color-success: #15803d;
+
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.5;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.6;
+
+  --shadow-card: 0 1px 2px rgb(23 23 23 / 0.04), 0 4px 16px rgb(23 23 23 / 0.04);
+  --shadow-card-hover: 0 8px 24px rgb(246 77 155 / 0.12);
+
+  --animate-fade-in: fade-in 150ms ease-out;
+  --animate-fade-out: fade-out 150ms ease-in;
+  --animate-sheet-in: sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-sheet-out: sheet-out 160ms ease-in;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+  }
+  @keyframes fade-out {
+    to { opacity: 0; }
+  }
+  @keyframes sheet-in {
+    from { transform: translateX(-100%); }
+  }
+  @keyframes sheet-out {
+    to { transform: translateX(-100%); }
+  }
+}
+
+@theme inline {
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-soft-strong);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@theme {
+  --animate-dialog-in: dialog-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-dialog-out: fade-out 120ms ease-in;
+
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -48%) scale(0.97);
+    }
+  }
+}
