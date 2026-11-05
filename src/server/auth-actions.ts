@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getOwnerId } from "@/lib/owner";
+import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
 export type SignInState = { error: string | null; email: string };
@@ -26,7 +27,7 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   if (!password || password.length > 256) return { error: MESSAGES.password, email };
 
   const ownerId = getOwnerId();
-  if (!ownerId) return { error: MESSAGES.config, email };
+  if (!ownerId || !hasSupabaseEnv()) return { error: MESSAGES.config, email };
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });

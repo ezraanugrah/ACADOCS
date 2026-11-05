@@ -9,6 +9,11 @@ export const AUTH_COOKIE_OPTIONS = {
   path: "/",
 };
 
+/** false bila env Supabase belum diisi (mis. lupa diset di Vercel). */
+export function hasSupabaseEnv() {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+}
+
 /** URL + publishable key Supabase. Aman di browser karena data dilindungi RLS. */
 export function getSupabaseEnv() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

@@ -1,5 +1,6 @@
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { isOwnerId } from "@/lib/owner";
+import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { redirectWithSession, updateSession } from "@/lib/supabase/proxy";
 
 const WORKSPACE_PATHS = ["/dashboard", "/folder", "/doc", "/search"];
@@ -13,8 +14,14 @@ function isWorkspace(pathname: string) {
  * Pemeriksaan otoritatif tetap di server (requireOwner) pada halaman dan Server Action.
  */
 export async function proxy(request: NextRequest) {
-  const { supabase, userId, getResponse } = await updateSession(request);
   const { pathname } = request.nextUrl;
+
+  // Konfigurasi belum lengkap: jangan buat seluruh situs error; workspace tetap tertutup.
+  if (!hasSupabaseEnv()) {
+    return isWorkspace(pathname) ? NextResponse.redirect(new URL("/login", request.url)) : NextResponse.next();
+  }
+
+  const { supabase, userId, getResponse } = await updateSession(request);
   const owner = isOwnerId(userId);
 
   if (userId && !owner) {
@@ -33,5 +40,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|icon.svg|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|icon.svg|favicon.ico|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

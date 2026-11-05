@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
 import { getOwnerId } from "@/lib/owner";
+import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
 export type Owner = { id: string; email: string };
@@ -15,7 +16,7 @@ export const getOwner = cache(async (): Promise<Owner | null> => {
   // Selalu per request: jangan ikut di-prerender/prefetch sebagai App Shell.
   await connection();
   const ownerId = getOwnerId();
-  if (!ownerId) return null;
+  if (!ownerId || !hasSupabaseEnv()) return null;
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
