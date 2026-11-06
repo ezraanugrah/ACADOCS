@@ -3,7 +3,7 @@ import { ANALYSIS_SCHEMA, normalizeAnalysis } from "@/lib/analysis";
 import { MAX_GUIDE_CHARS, MAX_THESIS_CHARS } from "@/lib/thesis-scan";
 import { createClient } from "@/lib/supabase/server";
 import { analysisPrompt, ANALYSIS_SYSTEM } from "@/server/analysis-prompt";
-import { aiConfigured } from "@/server/analysis";
+import { aiConfigured, anthropicApiKey, apiKeyProblem } from "@/server/analysis";
 import { getOwner } from "@/server/auth";
 import { getDocument } from "@/server/queries";
 
@@ -46,9 +46,13 @@ const fail = (status: number, error: string) => Response.json({ error }, { statu
 
 /** Pesan yang bisa dipahami untuk kegagalan layanan AI (tanpa membocorkan detail teknis). */
 function aiError(error: unknown) {
-  if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
-    return "API key Anthropic tidak valid atau tidak punya akses. Periksa ANTHROPIC_API_KEY.";
+  if (error instanceof Anthropic.AuthenticationError) {
+    return "Anthropic menolak API key ini: salah salin, sudah dihapus/dinonaktifkan, atau milik akun lain. Buat key baru di console.anthropic.com → API Keys, ganti nilai ANTHROPIC_API_KEY di Vercel, lalu redeploy.";
   }
+  if (error instanceof Anthropic.PermissionDeniedError) {
+    return "API key ini tidak punya izin memakai model Claude yang dibutuhkan. Periksa pengaturan workspace di console.anthropic.com, atau buat key dari workspace lain.";
+  }
+  if (error instanceof Anthropic.NotFoundError) return "Model Claude untuk analisis tidak tersedia di akun Anthropic ini.";
   if (error instanceof Anthropic.RateLimitError) return "Batas pemakaian AI tercapai. Coba lagi beberapa menit lagi.";
   if (error instanceof Anthropic.BadRequestError) {
     return /credit|billing|balance/i.test(error.message)
@@ -66,6 +70,8 @@ export async function POST(request: Request) {
   const owner = await getOwner();
   if (!owner) return fail(401, "Sesi berakhir. Masuk lagi untuk melanjutkan.");
   if (!aiConfigured()) return fail(503, "Fitur Cek Progres belum disiapkan: ANTHROPIC_API_KEY belum diisi di server.");
+  const keyProblem = apiKeyProblem();
+  if (keyProblem) return fail(503, keyProblem);
 
   let body: Body | null = null;
   try {
@@ -99,7 +105,7 @@ export async function POST(request: Request) {
       const heartbeat = setInterval(() => send({ type: "progress", written }), 5000);
 
       try {
-        const client = new Anthropic();
+        const client = new Anthropic({ apiKey: anthropicApiKey() });
         const response = client.beta.messages.stream(
           {
             model: MODEL,
