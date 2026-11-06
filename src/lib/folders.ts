@@ -48,11 +48,15 @@ export const CATEGORIES: Category[] = [
     slug: "jurnal",
     label: "Referensi Jurnal",
     shortLabel: "Jurnal",
-    description: "Jurnal referensi dan jurnal metopen.",
+    description: "Enam jurnal referensi, satu per slot.",
     icon: Library,
     children: [
-      { slug: "referensi", label: "6 Jurnal" },
-      { slug: "metopen", label: "6 Jurnal Metopen" },
+      { slug: "jurnal-1", label: "Jurnal 1" },
+      { slug: "jurnal-2", label: "Jurnal 2" },
+      { slug: "jurnal-3", label: "Jurnal 3" },
+      { slug: "jurnal-4", label: "Jurnal 4" },
+      { slug: "jurnal-5", label: "Jurnal 5" },
+      { slug: "jurnal-6", label: "Jurnal 6" },
     ],
   },
   {

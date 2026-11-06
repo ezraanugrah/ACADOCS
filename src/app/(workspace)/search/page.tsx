@@ -30,7 +30,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
         <EmptyState
           icon={Search}
           title="Mulai mencari"
-          description="Ketik sebagian nama file, misalnya “BAB 2” atau “metopen”. Huruf besar/kecil tidak berpengaruh."
+          description="Ketik sebagian nama file, misalnya “BAB 2” atau “jurnal”. Huruf besar/kecil tidak berpengaruh."
         />
       ) : results.length > 0 ? (
         <section aria-labelledby="hasil" className="flex flex-col gap-3">
