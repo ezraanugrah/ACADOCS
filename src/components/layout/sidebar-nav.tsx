@@ -50,7 +50,7 @@ function SidebarNav({ pathname, onNavigate }: { pathname: string; onNavigate: Na
         Kategori
       </p>
       {CATEGORIES.map((category) =>
-        category.children ? (
+        category.children && !category.hideChildrenInNav ? (
           <NavGroup
             key={category.slug}
             category={category}
@@ -63,7 +63,11 @@ function SidebarNav({ pathname, onNavigate }: { pathname: string; onNavigate: Na
             href={categoryHref(category.slug)}
             label={category.label}
             icon={category.icon}
-            active={pathname === categoryHref(category.slug)}
+            active={
+              pathname === categoryHref(category.slug) ||
+              // Subfolder tersembunyi (mis. kategori Script Unity) tetap menandai item induk.
+              (!!category.hideChildrenInNav && pathname.startsWith(`${categoryHref(category.slug)}/`))
+            }
             onNavigate={onNavigate}
           />
         ),
@@ -107,7 +111,7 @@ function NavGroup({ category, pathname, onNavigate }: NavGroupProps) {
   const href = categoryHref(category.slug);
   // null = ikuti rute aktif; true/false = pilihan pengguna.
   const [toggled, setToggled] = useState<boolean | null>(null);
-  // Semua grup (Draft, Jurnal, Script Unity) terbuka agar subfolder bisa dibuka dengan sekali klik.
+  // Grup Draft & Referensi Jurnal terbuka agar subfolder bisa dibuka dengan sekali klik.
   const open = toggled ?? true;
   const listId = `nav-${category.slug}`;
 

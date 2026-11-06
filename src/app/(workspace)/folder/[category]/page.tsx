@@ -55,10 +55,13 @@ export default async function CategoryPage({ params, searchParams }: PageProps<"
   );
 }
 
-/** Draft & Skripsi Lengkap punya tombol pecah laporan; folder biasa hanya Upload. */
+/**
+ * Draft & Skripsi Lengkap punya tombol pecah laporan; folder biasa hanya Upload.
+ * Script Unity: Upload di sini otomatis masuk ke kategori sesuai nama file.
+ */
 function headerAction(category: Category) {
   if (category.slug === "draft") return <ReportSplitDialog variant="primary" />;
-  if (category.children) return null;
+  if (category.children && !category.autoRouteUploads) return null;
   const upload = <UploadDialog folder={category.slug} folderLabel={category.label} />;
   if (category.slug !== "skripsi-lengkap") return upload;
   return (

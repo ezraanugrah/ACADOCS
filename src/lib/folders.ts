@@ -9,7 +9,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type SubFolder = { slug: string; label: string };
+export type SubFolder = {
+  slug: string;
+  label: string;
+  /** Kata kunci di nama file untuk menentukan subfolder otomatis saat upload. */
+  match?: string[];
+};
 
 export type Category = {
   slug: string;
@@ -18,6 +23,10 @@ export type Category = {
   description: string;
   icon: LucideIcon;
   children?: SubFolder[];
+  /** Subfolder hanya tampil di dalam halaman kategori, tidak di sidebar. */
+  hideChildrenInNav?: boolean;
+  /** Upload di halaman kategori otomatis masuk ke subfolder sesuai nama file. */
+  autoRouteUploads?: boolean;
 };
 
 /** Kategori tetap Acadocs. Maksimal 2 level: kategori → subfolder. */
@@ -72,17 +81,18 @@ export const CATEGORIES: Category[] = [
     shortLabel: "Unity",
     description: "Script game per kategori.",
     icon: FileCode,
+    hideChildrenInNav: true,
+    autoRouteUploads: true,
     children: [
-      { slug: "bangun-tidur", label: "Bangun Tidur" },
-      { slug: "beribadah", label: "Beribadah" },
-      { slug: "berolahraga", label: "Berolahraga" },
-      { slug: "makan-sehat-bergizi", label: "Makan Sehat Bergizi" },
-      { slug: "gemar-belajar", label: "Gemar Belajar" },
-      { slug: "bermasyarakat", label: "Bermasyarakat" },
-      { slug: "pemandu", label: "Pemandu" },
-      { slug: "animasi", label: "Animasi" },
-      { slug: "sound-effect", label: "Sound Effect" },
-      { slug: "lainnya", label: "Script Lain" },
+      { slug: "bangun-tidur", label: "Bangun Tidur", match: ["bangun tidur", "bangun pagi"] },
+      { slug: "beribadah", label: "Beribadah", match: ["beribadah", "ibadah"] },
+      { slug: "berolahraga", label: "Berolahraga", match: ["berolahraga", "olahraga"] },
+      { slug: "makan-sehat-bergizi", label: "Makan Sehat Bergizi", match: ["makan sehat", "bergizi"] },
+      { slug: "gemar-belajar", label: "Gemar Belajar", match: ["gemar belajar", "belajar"] },
+      { slug: "bermasyarakat", label: "Bermasyarakat", match: ["bermasyarakat", "masyarakat"] },
+      { slug: "pemandu", label: "Pemandu", match: ["pemandu"] },
+      { slug: "animasi", label: "Animasi", match: ["animasi", "animation"] },
+      { slug: "sound-effect", label: "Sound Effect", match: ["sound effect", "soundeffect", "sfx"] },
     ],
   },
   {
@@ -140,6 +150,15 @@ export function folderLabel(key: string) {
  */
 export function opensFileDirectly(key: string) {
   return key.startsWith("draft/") || key.startsWith("jurnal/") || key.startsWith("unity/") || key === "audio-assets";
+}
+
+/** Subfolder yang cocok dengan nama file (mis. "Script Beribadah.zip" → "unity/beribadah"), atau null. */
+export function detectSubfolder(category: Category, fileName: string) {
+  const name = ` ${fileName.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
+  const sub = category.children?.find((child) =>
+    (child.match ?? [child.label]).some((term) => name.includes(` ${term.toLowerCase()} `)),
+  );
+  return sub ? `${category.slug}/${sub.slug}` : null;
 }
 
 /** "draft/bab-3" → kategori "draft" */

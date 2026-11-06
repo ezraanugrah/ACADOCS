@@ -8,17 +8,33 @@ import { FileBadge } from "@/components/documents/file-badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { ACCEPT_ATTRIBUTE, checkFile, extensionOf } from "@/lib/file-rules";
+import { detectSubfolder, getCategory, type Category } from "@/lib/folders";
 import { formatBytes } from "@/lib/format";
 import { putToSignedUrl } from "@/lib/upload-client";
 import { cn } from "@/lib/utils";
 import { finalizeUpload, prepareUpload } from "@/server/document-actions";
 
 type Status = "siap" | "invalid" | "upload" | "selesai" | "gagal";
-type Item = { key: string; file: File; name: string; status: Status; progress: number; error?: string };
+type Item = {
+  key: string;
+  file: File;
+  name: string;
+  /** Folder tujuan; null = kategori belum dipilih (mode otomatis). */
+  folder: string | null;
+  status: Status;
+  progress: number;
+  error?: string;
+};
 
 type UploadDialogProps = { folder: string; folderLabel: string; variant?: "primary" | "secondary" };
 
+/**
+ * Upload ke satu folder. Bila `folder` adalah kategori dengan `autoRouteUploads` (Script Unity),
+ * tiap file otomatis masuk ke subfoldernya sesuai nama file; yang tidak cocok dipilih manual.
+ */
 export function UploadDialog({ folder, folderLabel, variant = "primary" }: UploadDialogProps) {
+  const target = getCategory(folder);
+  const routing = target?.autoRouteUploads ? target : undefined;
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -27,6 +43,7 @@ export function UploadDialog({ folder, folderLabel, variant = "primary" }: Uploa
   const [dragging, setDragging] = useState(false);
 
   const pending = items.filter((item) => item.status === "siap" || item.status === "gagal");
+  const unrouted = pending.filter((item) => !item.folder).length;
   const pendingBytes = pending.reduce((sum, item) => sum + item.file.size, 0);
   const finished = items.filter((item) => item.status === "selesai").length;
 
@@ -39,6 +56,7 @@ export function UploadDialog({ folder, folderLabel, variant = "primary" }: Uploa
           key: crypto.randomUUID(),
           file,
           name: check.ok ? check.name : file.name,
+          folder: routing ? detectSubfolder(routing, check.ok ? check.name : file.name) : folder,
           status: check.ok ? "siap" : "invalid",
           progress: 0,
           error: check.ok ? undefined : check.error,
@@ -63,14 +81,16 @@ export function UploadDialog({ folder, folderLabel, variant = "primary" }: Uploa
     let failed = 0;
     // Berurutan: satu file gagal tidak menghentikan yang lain.
     for (const item of pending) {
+      const destination = item.folder;
+      if (!destination) continue;
       update(item.key, { status: "upload", progress: 0, error: undefined });
       try {
-        const ticket = await prepareUpload({ folder, name: item.file.name, size: item.file.size });
+        const ticket = await prepareUpload({ folder: destination, name: item.file.name, size: item.file.size });
         if (!ticket.ok) throw new Error(ticket.error);
         await putToSignedUrl(ticket.data.signedUrl, item.file, ticket.data.mime, (progress) =>
           update(item.key, { progress }),
         );
-        const saved = await finalizeUpload({ folder, path: ticket.data.path, name: item.file.name });
+        const saved = await finalizeUpload({ folder: destination, path: ticket.data.path, name: item.file.name });
         if (!saved.ok) throw new Error(saved.error);
         update(item.key, { status: "selesai", progress: 1 });
         success += 1;
@@ -103,7 +123,11 @@ export function UploadDialog({ folder, folderLabel, variant = "primary" }: Uploa
       </DialogTrigger>
       <DialogContent
         title={`Upload ke ${folderLabel}`}
-        description="Bisa beberapa file sekaligus. Maksimal 50 MB per file."
+        description={
+          routing
+            ? "File otomatis masuk ke kategori sesuai namanya. Maksimal 50 MB per file."
+            : "Bisa beberapa file sekaligus. Maksimal 50 MB per file."
+        }
         locked={busy}
       >
         <div
@@ -153,6 +177,8 @@ export function UploadDialog({ folder, folderLabel, variant = "primary" }: Uploa
               <UploadRow
                 key={item.key}
                 item={item}
+                routing={routing}
+                onRoute={(next) => update(item.key, { folder: next })}
                 onRemove={busy ? undefined : () => setItems((current) => current.filter((i) => i.key !== item.key))}
               />
             ))}
@@ -163,17 +189,19 @@ export function UploadDialog({ folder, folderLabel, variant = "primary" }: Uploa
           <p className="text-meta text-ink-muted" aria-live="polite">
             {busy
               ? `Mengunggah… ${finished}/${finished + pending.length}`
-              : pending.length
-                ? `${pending.length} file siap · ${formatBytes(pendingBytes)}`
-                : finished
-                  ? `${finished} file selesai`
-                  : "Belum ada file dipilih"}
+              : unrouted
+                ? `Pilih kategori untuk ${unrouted} file`
+                : pending.length
+                  ? `${pending.length} file siap · ${formatBytes(pendingBytes)}`
+                  : finished
+                    ? `${finished} file selesai`
+                    : "Belum ada file dipilih"}
           </p>
           <div className="flex gap-2">
             <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
               {finished && !pending.length ? "Selesai" : "Batal"}
             </Button>
-            <Button disabled={busy || pending.length === 0} onClick={startUpload}>
+            <Button disabled={busy || pending.length === 0 || unrouted > 0} onClick={startUpload}>
               {busy ? <LoaderCircle className="animate-spin" aria-hidden /> : <Upload aria-hidden />}
               {busy ? "Mengunggah" : pending.length ? `Upload ${pending.length} file` : "Upload"}
             </Button>
@@ -184,7 +212,17 @@ export function UploadDialog({ folder, folderLabel, variant = "primary" }: Uploa
   );
 }
 
-function UploadRow({ item, onRemove }: { item: Item; onRemove?: () => void }) {
+type UploadRowProps = {
+  item: Item;
+  routing?: Category;
+  onRoute: (folder: string | null) => void;
+  onRemove?: () => void;
+};
+
+function UploadRow({ item, routing, onRoute, onRemove }: UploadRowProps) {
+  const editable = item.status === "siap" || item.status === "gagal";
+  const subLabel = (key: string | null) => routing?.children?.find((sub) => key === `${routing.slug}/${sub.slug}`)?.label;
+
   return (
     <li className="flex items-center gap-3 rounded-xl border border-line bg-surface px-3 py-2.5">
       <FileBadge extension={extensionOf(item.name)} className="size-9 rounded-lg text-[9.5px]" />
@@ -199,8 +237,27 @@ function UploadRow({ item, onRemove }: { item: Item; onRemove?: () => void }) {
         ) : (
           <p className={cn("mt-0.5 text-[12px]", item.error ? "text-danger" : "text-ink-muted")}>
             {item.error ?? (item.status === "selesai" ? "Selesai" : formatBytes(item.file.size))}
+            {routing && !editable && item.folder ? ` · ${subLabel(item.folder)}` : null}
           </p>
         )}
+        {routing && editable ? (
+          <select
+            value={item.folder ?? ""}
+            onChange={(event) => onRoute(event.target.value || null)}
+            aria-label={`Kategori untuk ${item.name}`}
+            className={cn(
+              "mt-1.5 h-8 w-full max-w-60 rounded-lg border bg-surface px-2 text-[12px] font-semibold transition-colors focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:outline-none",
+              item.folder ? "border-line text-ink" : "border-primary text-primary-strong",
+            )}
+          >
+            <option value="">Pilih kategori…</option>
+            {routing.children?.map((sub) => (
+              <option key={sub.slug} value={`${routing.slug}/${sub.slug}`}>
+                {sub.label}
+              </option>
+            ))}
+          </select>
+        ) : null}
       </div>
       {item.status === "selesai" ? (
         <CircleCheck className="size-5 shrink-0 text-success" aria-label="Berhasil" />
