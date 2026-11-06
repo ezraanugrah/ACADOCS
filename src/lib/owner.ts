@@ -1,3 +1,5 @@
+import { cleanEnvValue } from "@/lib/supabase/env";
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -5,7 +7,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * null = belum dikonfigurasi → semua akses workspace ditolak (fail closed).
  */
 export function getOwnerId() {
-  const id = process.env.ACADOCS_OWNER_ID?.trim();
+  const id = cleanEnvValue(process.env.ACADOCS_OWNER_ID);
   return id && UUID.test(id) ? id.toLowerCase() : null;
 }
 

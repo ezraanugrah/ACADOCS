@@ -5,7 +5,8 @@ const isDev = process.env.NODE_ENV === "development";
 // Origin Supabase (mis. https://<ref>.supabase.co). Dipakai untuk upload langsung & pratinjau PDF.
 const supabaseOrigin = (() => {
   try {
-    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").origin;
+    const raw = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim().replace(/^(["'])(.*)\1$/, "$2").trim();
+    return new URL(raw).origin;
   } catch {
     return "";
   }

@@ -1,3 +1,5 @@
+import { PUBLIC_SUPABASE_KEY } from "@/lib/supabase/env";
+
 /**
  * Kirim file langsung dari browser ke Supabase Storage lewat signed upload URL.
  * File tidak melewati server Next.js/Vercel. MIME diambil dari ekstensi (bukan dari browser).
@@ -14,7 +16,7 @@ export function putToSignedUrl(
     xhr.setRequestHeader("content-type", mime);
     xhr.setRequestHeader("x-upsert", "false");
     // Publishable key bersifat publik; signed URL-lah yang memberi izin upload.
-    xhr.setRequestHeader("apikey", process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "");
+    xhr.setRequestHeader("apikey", PUBLIC_SUPABASE_KEY);
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) onProgress(event.loaded / event.total);
     };

@@ -14,6 +14,7 @@ const MESSAGES = {
   rateLimited: "Terlalu banyak percobaan. Tunggu beberapa menit, lalu coba lagi.",
   forbidden: "Akun ini tidak punya akses ke Acadocs.",
   config: "Login belum bisa dipakai karena konfigurasi server belum lengkap.",
+  badKey: "Login belum bisa dipakai karena konfigurasi server tidak valid.",
   unavailable: "Layanan login sedang bermasalah. Coba lagi sebentar lagi.",
 };
 
@@ -33,6 +34,10 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
+    // Hanya status & kode yang dicatat (tanpa email/password) agar bisa dilacak di log server.
+    console.warn("[acadocs] login gagal", { status: error.status, code: error.code });
+    // Key Supabase ditolak = salah konfigurasi server, bukan salah password.
+    if (error.status === 401 || /api key/i.test(error.message)) return { error: MESSAGES.badKey, email };
     // Pesan sengaja umum: tidak membedakan email tak dikenal vs password salah.
     if (error.status === 429 || error.code === "over_request_rate_limit") {
       return { error: MESSAGES.rateLimited, email };
