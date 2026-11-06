@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { AudioLines, Download, ExternalLink, FileText } from "lucide-react";
 import { DocumentActionButtons } from "@/components/documents/file-actions";
 import { FileBadge } from "@/components/documents/file-badge";
+import { ZipPreview } from "@/components/documents/zip-preview";
 import { buttonStyles } from "@/components/ui/button";
 import { IconChip } from "@/components/ui/icon-chip";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -55,6 +56,8 @@ export function DocumentView({ doc, headingLevel = "h1" }: DocumentViewProps) {
             Browser ini belum mendukung pemutar audio.
           </audio>
         </section>
+      ) : kind === "zip" ? (
+        <ZipPreview viewHref={viewHref} />
       ) : kind === "text" ? (
         <Suspense fallback={<Skeleton className="h-80 rounded-2xl" />}>
           <TextPreview doc={doc} />

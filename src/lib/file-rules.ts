@@ -35,7 +35,7 @@ export function fileKind(extension: string) {
   return FILE_RULES[extension.toLowerCase()]?.kind ?? extension.toUpperCase();
 }
 
-export type PreviewKind = "pdf" | "image" | "audio" | "text" | "none";
+export type PreviewKind = "pdf" | "image" | "audio" | "text" | "zip" | "none";
 
 /** Cara menampilkan file langsung di halaman. */
 export function previewKind(extension: string): PreviewKind {
@@ -44,6 +44,7 @@ export function previewKind(extension: string): PreviewKind {
   if (["png", "jpg", "jpeg", "webp"].includes(ext)) return "image";
   if (["mp3", "wav", "m4a", "ogg"].includes(ext)) return "audio";
   if (["cs", "txt", "md", "json", "csv"].includes(ext)) return "text";
+  if (ext === "zip") return "zip";
   return "none";
 }
 
