@@ -159,6 +159,26 @@ export async function finalizeReplace(input: { id: string; path: string; name: s
   return ok({ id: doc.id });
 }
 
+// ── File terbaru per folder (untuk pecah laporan) ────────────────
+
+export async function latestInFolders(input: { folders: string[] }): Promise<Result<Record<string, { id: string; name: string }>>> {
+  await requireOwner();
+  const folders = (Array.isArray(input.folders) ? input.folders : []).map(String).filter(isFolderKey).slice(0, 20);
+  if (folders.length === 0) return ok({});
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("documents")
+    .select("id, name, folder")
+    .in("folder", folders)
+    .order("updated_at", { ascending: false });
+  if (error) return fail("Daftar file belum bisa dibaca. Coba lagi.");
+
+  const latest: Record<string, { id: string; name: string }> = {};
+  for (const doc of data) latest[doc.folder] ??= { id: doc.id, name: doc.name };
+  return ok(latest);
+}
+
 // ── Hapus ─────────────────────────────────────────────────────────
 
 export async function deleteDocument(input: { id: string }): Promise<Result<{ folder: string }>> {

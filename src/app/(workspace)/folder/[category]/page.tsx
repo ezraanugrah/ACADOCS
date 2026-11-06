@@ -4,6 +4,7 @@ import { FolderEmptyState } from "@/components/documents/empty-state";
 import { FileTable } from "@/components/documents/file-table";
 import { FolderCard } from "@/components/documents/folder-card";
 import { FolderHeader } from "@/components/documents/folder-header";
+import { ReportSplitDialog } from "@/components/documents/report-split-dialog";
 import { UploadDialog } from "@/components/documents/upload-dialog";
 import { categoryHref, getCategory, type Category } from "@/lib/folders";
 import { listCategoryDocuments, summarize } from "@/server/queries";
@@ -27,7 +28,7 @@ export default async function CategoryPage({ params }: PageProps<"/folder/[categ
         description={category.description}
         crumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: category.label }]}
         stats={total}
-        action={category.children ? null : <UploadDialog folder={category.slug} folderLabel={category.label} />}
+        action={headerAction(category)}
       />
       {category.children ? (
         <SubfolderGrid category={category} documents={documents} />
@@ -40,6 +41,20 @@ export default async function CategoryPage({ params }: PageProps<"/folder/[categ
           action={<UploadDialog folder={category.slug} folderLabel={category.label} variant="secondary" />}
         />
       )}
+    </div>
+  );
+}
+
+/** Draft & Skripsi Lengkap punya tombol pecah laporan; folder biasa hanya Upload. */
+function headerAction(category: Category) {
+  if (category.slug === "draft") return <ReportSplitDialog variant="primary" />;
+  if (category.children) return null;
+  const upload = <UploadDialog folder={category.slug} folderLabel={category.label} />;
+  if (category.slug !== "skripsi-lengkap") return upload;
+  return (
+    <div className="flex flex-wrap gap-2">
+      <ReportSplitDialog />
+      {upload}
     </div>
   );
 }
