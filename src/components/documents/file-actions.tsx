@@ -91,7 +91,10 @@ export function DocumentActionButtons({ doc }: { doc: Doc }) {
         doc={doc}
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        onDeleted={(folder) => router.replace(folderHref(folder))}
+        onDeleted={(folder) => {
+          router.replace(folderHref(folder));
+          router.refresh();
+        }}
       />
     </div>
   );

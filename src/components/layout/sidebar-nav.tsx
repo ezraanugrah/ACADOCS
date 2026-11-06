@@ -108,7 +108,8 @@ function NavGroup({ category, pathname, onNavigate }: NavGroupProps) {
   const inGroup = pathname === href || pathname.startsWith(`${href}/`);
   // null = ikuti rute aktif; true/false = pilihan pengguna.
   const [toggled, setToggled] = useState<boolean | null>(null);
-  const open = toggled ?? inGroup;
+  // Draft selalu terbuka agar Abstract & BAB 1–5 bisa dibuka dengan sekali klik.
+  const open = toggled ?? (inGroup || category.slug === "draft");
   const listId = `nav-${category.slug}`;
 
   return (
