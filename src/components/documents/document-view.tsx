@@ -20,8 +20,6 @@ type DocumentViewProps = {
 /** Info, aksi (Download/Ganti/Hapus), dan pratinjau satu dokumen. */
 export function DocumentView({ doc, headingLevel = "h1" }: DocumentViewProps) {
   const Heading = headingLevel;
-  const viewHref = `/doc/${doc.id}/view`;
-  const kind = previewKind(doc.extension);
 
   return (
     <div className="flex flex-col gap-6">
@@ -38,34 +36,41 @@ export function DocumentView({ doc, headingLevel = "h1" }: DocumentViewProps) {
         </div>
         <DocumentActionButtons doc={{ id: doc.id, name: doc.name }} />
       </div>
-
-      {kind === "pdf" ? (
-        <PdfPreview doc={doc} viewHref={viewHref} />
-      ) : kind === "image" ? (
-        <section aria-label="Pratinjau gambar" className="flex justify-center rounded-2xl border border-line bg-canvas p-4 shadow-card">
-          {/* eslint-disable-next-line @next/next/no-img-element -- file privat lewat signed URL; jangan lewat optimasi gambar Next. */}
-          <img src={viewHref} alt={doc.name} className="max-h-[70vh] w-auto max-w-full rounded-lg object-contain" />
-        </section>
-      ) : kind === "audio" ? (
-        <section aria-label="Pemutar audio" className="rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-6">
-          <div className="flex items-center gap-3">
-            <IconChip icon={AudioLines} size="sm" />
-            <p className="text-body font-semibold text-ink">Putar audio</p>
-          </div>
-          <audio controls preload="metadata" src={viewHref} className="mt-4 w-full">
-            Browser ini belum mendukung pemutar audio.
-          </audio>
-        </section>
-      ) : kind === "zip" ? (
-        <ZipPreview viewHref={viewHref} />
-      ) : kind === "text" ? (
-        <Suspense fallback={<Skeleton className="h-80 rounded-2xl" />}>
-          <TextPreview doc={doc} />
-        </Suspense>
-      ) : (
-        <NoPreview doc={doc} />
-      )}
+      <DocumentPreview doc={doc} />
     </div>
+  );
+}
+
+/** Pratinjau isi dokumen sesuai tipenya (PDF, gambar, audio, ZIP, teks), atau ajakan Download. */
+export function DocumentPreview({ doc }: { doc: DocumentItem }) {
+  const viewHref = `/doc/${doc.id}/view`;
+  const kind = previewKind(doc.extension);
+
+  return kind === "pdf" ? (
+    <PdfPreview doc={doc} viewHref={viewHref} />
+  ) : kind === "image" ? (
+    <section aria-label="Pratinjau gambar" className="flex justify-center rounded-2xl border border-line bg-canvas p-4 shadow-card">
+      {/* eslint-disable-next-line @next/next/no-img-element -- file privat lewat signed URL; jangan lewat optimasi gambar Next. */}
+      <img src={viewHref} alt={doc.name} className="max-h-[70vh] w-auto max-w-full rounded-lg object-contain" />
+    </section>
+  ) : kind === "audio" ? (
+    <section aria-label="Pemutar audio" className="rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-6">
+      <div className="flex items-center gap-3">
+        <IconChip icon={AudioLines} size="sm" />
+        <p className="text-body font-semibold text-ink">Putar audio</p>
+      </div>
+      <audio controls preload="metadata" src={viewHref} className="mt-4 w-full">
+        Browser ini belum mendukung pemutar audio.
+      </audio>
+    </section>
+  ) : kind === "zip" ? (
+    <ZipPreview viewHref={viewHref} />
+  ) : kind === "text" ? (
+    <Suspense fallback={<Skeleton className="h-80 rounded-2xl" />}>
+      <TextPreview doc={doc} />
+    </Suspense>
+  ) : (
+    <NoPreview doc={doc} />
   );
 }
 

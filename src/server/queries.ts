@@ -18,16 +18,6 @@ function failed(): never {
   throw new Error("Dokumen gagal dimuat. Coba lagi sebentar lagi.");
 }
 
-export async function listAllDocuments(): Promise<DocumentItem[]> {
-  const supabase = await ownerClient();
-  const { data, error } = await supabase
-    .from("documents")
-    .select(COLUMNS)
-    .order("updated_at", { ascending: false });
-  if (error) failed();
-  return data;
-}
-
 /** Dokumen dalam satu kategori. Slug wajib sudah divalidasi terhadap daftar kategori. */
 export async function listCategoryDocuments(categorySlug: string): Promise<DocumentItem[]> {
   const category = getCategory(categorySlug);
@@ -49,6 +39,20 @@ export async function listCategoryFolders(categorySlug: string): Promise<string[
   const { data, error } = await supabase.from("documents").select("folder").like("folder", `${category.slug}/%`);
   if (error) failed();
   return [...new Set(data.map((row) => row.folder))];
+}
+
+/** File terbaru di satu folder, atau null bila kosong. */
+export async function getLatestInFolder(folderKey: string): Promise<DocumentItem | null> {
+  const supabase = await ownerClient();
+  const { data, error } = await supabase
+    .from("documents")
+    .select(COLUMNS)
+    .eq("folder", folderKey)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) failed();
+  return data;
 }
 
 export async function listFolderDocuments(folderKey: string): Promise<DocumentItem[]> {

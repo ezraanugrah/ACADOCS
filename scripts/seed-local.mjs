@@ -7,6 +7,7 @@ import { LOCAL_USERS, ensureUser, readLocalStatus } from "./local-supabase.mjs";
 
 const SAMPLES = [
   ["skripsi-lengkap", "Skripsi_Final_v4.pdf", "application/pdf", 4],
+  ["skripsi-panduan", "Skripsi Panduan - Contoh Kakak Tingkat.pdf", "application/pdf", 1],
   ["draft/abstract", "Abstract - ID & EN.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 1],
   ["draft/bab-1", "BAB 1 - Pendahuluan.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 2],
   ["draft/bab-2", "BAB 2 - Kajian Pustaka.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 1],
@@ -18,6 +19,30 @@ const SAMPLES = [
   ["unity/pemandu", "PlayerController.cs", "text/plain", 2],
   ["audio-assets/narasi-intro", "Narasi_Intro.mp3", "audio/mpeg", 1],
 ];
+
+/** PDF kecil yang valid (satu halaman berisi judul) supaya pratinjau bisa diuji. */
+function samplePdf(title) {
+  const text = title.replace(/[\\()]/g, "");
+  const stream = `BT /F1 20 Tf 60 760 Td (${text}) Tj 0 -32 Td /F1 12 Tf (Dokumen contoh untuk uji lokal Acadocs.) Tj ET`;
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = objects.map((body, index) => {
+    const offset = pdf.length;
+    pdf += `${index + 1} 0 obj\n${body}\nendobj\n`;
+    return offset;
+  });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  pdf += offsets.map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`).join("");
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return new TextEncoder().encode(pdf);
+}
 
 const status = readLocalStatus();
 const admin = createClient(status.API_URL, status.SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -39,7 +64,8 @@ if (old?.length) {
 for (const [folder, name, mime, version] of SAMPLES) {
   const extension = name.split(".").pop().toLowerCase();
   const path = `${ownerId}/${folder}/${randomUUID()}.${extension}`;
-  const body = new Blob([randomBytes(20_000 + Math.floor(Math.random() * 900_000))], { type: mime });
+  const bytes = extension === "pdf" ? samplePdf(name) : randomBytes(20_000 + Math.floor(Math.random() * 900_000));
+  const body = new Blob([bytes], { type: mime });
   const upload = await owner.storage.from("documents").upload(path, body);
   if (upload.error) throw new Error(`Upload ${name}: ${upload.error.message}`);
   const insert = await owner

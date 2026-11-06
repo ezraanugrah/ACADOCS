@@ -1,5 +1,6 @@
 import {
   AudioLines,
+  BookOpenCheck,
   FileCode,
   FilePen,
   Folder,
@@ -34,6 +35,13 @@ export const CATEGORIES: Category[] = [
     shortLabel: "Skripsi",
     description: "Naskah utuh versi terbaru.",
     icon: GraduationCap,
+  },
+  {
+    slug: "skripsi-panduan",
+    label: "Skripsi Panduan",
+    shortLabel: "Panduan",
+    description: "Skripsi contoh sebagai acuan menulis.",
+    icon: BookOpenCheck,
   },
   {
     slug: "draft",
@@ -188,7 +196,7 @@ export function folderLabel(key: string) {
  * dengan daftar semua file di bawahnya.
  */
 export function opensFileDirectly(key: string) {
-  return key.startsWith("draft/") || key.startsWith("jurnal/") || key.startsWith("unity/") || key.startsWith("audio-assets/");
+  return key === "skripsi-panduan" || key.startsWith("draft/") || key.startsWith("jurnal/") || key.startsWith("unity/") || key.startsWith("audio-assets/");
 }
 
 const NAME_PREFIX = /^(scripts?|unity)$/i;
