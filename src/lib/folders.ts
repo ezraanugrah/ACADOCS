@@ -118,6 +118,14 @@ export function folderLabel(key: string) {
   return sub ? `${category.shortLabel} · ${sub.label}` : category.label;
 }
 
+/**
+ * Folder yang langsung menampilkan file terbaru saat dibuka (sekali klik dari sidebar),
+ * dengan daftar semua file di bawahnya.
+ */
+export function opensFileDirectly(key: string) {
+  return key.startsWith("draft/") || key.startsWith("jurnal/") || key === "unity" || key === "audio-assets";
+}
+
 /** "draft/bab-3" → kategori "draft" */
 export function categorySlugOf(key: string) {
   return key.split("/")[0];

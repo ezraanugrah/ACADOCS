@@ -69,6 +69,19 @@ export async function getDocument(id: string): Promise<StoredDocument | null> {
   return data;
 }
 
+/** Batas ukuran file teks/kode yang dipratinjau langsung di halaman. */
+export const TEXT_PREVIEW_MAX_BYTES = 512 * 1024;
+
+/** Isi file teks/kode milik pemilik (untuk pratinjau). null bila terlalu besar atau gagal dibaca. */
+export async function readTextPreview(id: string): Promise<string | null> {
+  const doc = await getDocument(id);
+  if (!doc || doc.size_bytes > TEXT_PREVIEW_MAX_BYTES) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase.storage.from("documents").download(doc.storage_path);
+  if (error || !data) return null;
+  return new TextDecoder("utf-8").decode(await data.arrayBuffer());
+}
+
 export const SEARCH_LIMIT = 100;
 
 /** Cari berdasarkan nama di semua folder. `terms` berasal dari searchTerms(). */

@@ -35,6 +35,18 @@ export function fileKind(extension: string) {
   return FILE_RULES[extension.toLowerCase()]?.kind ?? extension.toUpperCase();
 }
 
+export type PreviewKind = "pdf" | "image" | "audio" | "text" | "none";
+
+/** Cara menampilkan file langsung di halaman. */
+export function previewKind(extension: string): PreviewKind {
+  const ext = extension.toLowerCase();
+  if (ext === "pdf") return "pdf";
+  if (["png", "jpg", "jpeg", "webp"].includes(ext)) return "image";
+  if (["mp3", "wav", "m4a", "ogg"].includes(ext)) return "audio";
+  if (["cs", "txt", "md", "json", "csv"].includes(ext)) return "text";
+  return "none";
+}
+
 export const MAX_NAME_LENGTH = 180;
 
 /** Nilai atribut `accept` untuk input file. */

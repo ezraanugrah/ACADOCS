@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { DocumentView } from "@/components/documents/document-view";
 import { FolderEmptyState } from "@/components/documents/empty-state";
 import { FileTable } from "@/components/documents/file-table";
 import { FolderHeader } from "@/components/documents/folder-header";
+import { FolderViewer } from "@/components/documents/folder-viewer";
 import { SubfolderTabs } from "@/components/documents/subfolder-tabs";
 import { UploadDialog } from "@/components/documents/upload-dialog";
-import { categoryHref, getCategory } from "@/lib/folders";
+import { categoryHref, getCategory, opensFileDirectly } from "@/lib/folders";
 import { listFolderDocuments, summarize } from "@/server/queries";
 
 export const metadata: Metadata = { title: "Folder" };
 
-export default async function SubfolderPage({ params }: PageProps<"/folder/[category]/[sub]">) {
+export default async function SubfolderPage({ params, searchParams }: PageProps<"/folder/[category]/[sub]">) {
   const { category: slug, sub: subSlug } = await params;
+  const { file } = await searchParams;
   const category = getCategory(slug);
   const sub = category?.children?.find((child) => child.slug === subSlug);
   if (!category || !sub) notFound();
@@ -36,19 +37,14 @@ export default async function SubfolderPage({ params }: PageProps<"/folder/[cate
         action={<UploadDialog folder={folderKey} folderLabel={folderName} />}
       />
       <SubfolderTabs category={category} active={sub.slug} />
-      {documents.length > 0 && category.slug === "draft" ? (
-        // Draft: satu klik di sidebar langsung menampilkan file terbaru.
-        <>
-          <DocumentView doc={documents[0]} headingLevel="h2" />
-          {documents.length > 1 ? (
-            <section aria-labelledby="file-lain" className="flex flex-col gap-3">
-              <h2 id="file-lain" className="text-lg font-semibold tracking-tight text-ink">
-                File lain di {sub.label}
-              </h2>
-              <FileTable documents={documents.slice(1)} />
-            </section>
-          ) : null}
-        </>
+      {documents.length > 0 && opensFileDirectly(folderKey) ? (
+        // Sekali klik dari sidebar langsung menampilkan file (terbaru atau ?file=…).
+        <FolderViewer
+          folderKey={folderKey}
+          folderName={sub.label}
+          documents={documents}
+          selectedId={typeof file === "string" ? file : undefined}
+        />
       ) : documents.length > 0 ? (
         <FileTable documents={documents} />
       ) : (

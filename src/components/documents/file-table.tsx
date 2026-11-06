@@ -16,10 +16,14 @@ type FileTableProps = {
   showFolder?: boolean;
   /** Kata yang disorot di nama file. */
   highlight?: string[];
+  /** Tujuan link nama file (default: halaman dokumen). */
+  fileHref?: (doc: DocumentItem) => string;
+  /** File yang sedang ditampilkan di atas daftar (disorot). */
+  activeId?: string;
 };
 
 /** Daftar file: tabel bila area konten lebar (container query), ringkas bila sempit. */
-export function FileTable({ documents, showFolder = false, highlight }: FileTableProps) {
+export function FileTable({ documents, showFolder = false, highlight, fileHref, activeId }: FileTableProps) {
   return (
     <div className="@container overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
       <div
@@ -35,12 +39,16 @@ export function FileTable({ documents, showFolder = false, highlight }: FileTabl
       </div>
       <ul className="divide-y divide-line">
         {documents.map((doc) => (
-          <li key={doc.id} className={`flex items-center gap-3 px-4 py-3.5 sm:px-5 ${columns}`}>
+          <li
+            key={doc.id}
+            className={`flex items-center gap-3 px-4 py-3.5 sm:px-5 ${columns} ${doc.id === activeId ? "bg-soft" : ""}`}
+          >
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <FileBadge extension={doc.extension} />
               <div className="min-w-0">
                 <Link
-                  href={`/doc/${doc.id}`}
+                  href={fileHref ? fileHref(doc) : `/doc/${doc.id}`}
+                  aria-current={doc.id === activeId ? "true" : undefined}
                   className="block truncate text-body font-semibold text-ink hover:text-primary-strong"
                   title={doc.name}
                 >

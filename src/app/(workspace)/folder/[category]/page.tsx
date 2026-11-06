@@ -4,16 +4,18 @@ import { FolderEmptyState } from "@/components/documents/empty-state";
 import { FileTable } from "@/components/documents/file-table";
 import { FolderCard } from "@/components/documents/folder-card";
 import { FolderHeader } from "@/components/documents/folder-header";
+import { FolderViewer } from "@/components/documents/folder-viewer";
 import { ReportSplitDialog } from "@/components/documents/report-split-dialog";
 import { UploadDialog } from "@/components/documents/upload-dialog";
-import { categoryHref, getCategory, type Category } from "@/lib/folders";
+import { categoryHref, getCategory, opensFileDirectly, type Category } from "@/lib/folders";
 import { listCategoryDocuments, summarize } from "@/server/queries";
 import type { DocumentItem } from "@/types/document";
 
 export const metadata: Metadata = { title: "Folder" };
 
-export default async function CategoryPage({ params }: PageProps<"/folder/[category]">) {
+export default async function CategoryPage({ params, searchParams }: PageProps<"/folder/[category]">) {
   const { category: slug } = await params;
+  const { file } = await searchParams;
   const category = getCategory(slug);
   if (!category) notFound();
 
@@ -32,6 +34,14 @@ export default async function CategoryPage({ params }: PageProps<"/folder/[categ
       />
       {category.children ? (
         <SubfolderGrid category={category} documents={documents} />
+      ) : documents.length > 0 && opensFileDirectly(category.slug) ? (
+        // Sekali klik dari sidebar langsung menampilkan file (terbaru atau ?file=…).
+        <FolderViewer
+          folderKey={category.slug}
+          folderName={category.label}
+          documents={documents}
+          selectedId={typeof file === "string" ? file : undefined}
+        />
       ) : documents.length > 0 ? (
         <FileTable documents={documents} />
       ) : (
