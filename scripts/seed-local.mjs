@@ -4,10 +4,15 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { LOCAL_USERS, ensureUser, readLocalStatus } from "./local-supabase.mjs";
+import { sampleGuideDocx, sampleThesisDocx, sampleThesisPdf } from "./sample-thesis.mjs";
+
+const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 const SAMPLES = [
-  ["skripsi-lengkap", "Skripsi_Final_v4.pdf", "application/pdf", 4],
-  ["skripsi-panduan", "Skripsi Panduan - Contoh Kakak Tingkat.pdf", "application/pdf", 1],
+  // Skripsi berstabilo untuk menguji Cek Progres (versi Word ada di Dokumen Lainnya).
+  ["skripsi-lengkap", "Skripsi_Final_v4.pdf", "application/pdf", 4, sampleThesisPdf],
+  ["skripsi-panduan", "Skripsi Panduan - Contoh Kakak Tingkat.docx", DOCX, 1, sampleGuideDocx],
+  ["lainnya", "Skripsi_Final_v4 (Word).docx", DOCX, 1, sampleThesisDocx],
   ["draft/abstract", "Abstract - ID & EN.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 1],
   ["draft/bab-1", "BAB 1 - Pendahuluan.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 2],
   ["draft/bab-2", "BAB 2 - Kajian Pustaka.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 1],
@@ -61,10 +66,14 @@ if (old?.length) {
   await owner.from("documents").delete().in("id", old.map((doc) => doc.id));
 }
 
-for (const [folder, name, mime, version] of SAMPLES) {
+for (const [folder, name, mime, version, make] of SAMPLES) {
   const extension = name.split(".").pop().toLowerCase();
   const path = `${ownerId}/${folder}/${randomUUID()}.${extension}`;
-  const bytes = extension === "pdf" ? samplePdf(name) : randomBytes(20_000 + Math.floor(Math.random() * 900_000));
+  const bytes = make
+    ? await make()
+    : extension === "pdf"
+      ? samplePdf(name)
+      : randomBytes(20_000 + Math.floor(Math.random() * 900_000));
   const body = new Blob([bytes], { type: mime });
   const upload = await owner.storage.from("documents").upload(path, body);
   if (upload.error) throw new Error(`Upload ${name}: ${upload.error.message}`);

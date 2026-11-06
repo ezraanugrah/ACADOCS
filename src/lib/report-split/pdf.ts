@@ -1,4 +1,5 @@
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
+import { loadPdfjs } from "@/lib/pdfjs";
 import { classify, detectSections, type Block, type Section } from "@/lib/report-split/detect";
 
 type Line = { text: string; minX: number; maxX: number; y: number; height: number };
@@ -35,20 +36,6 @@ function toLines(items: TextLike[]): Line[] {
     .map((l) => ({ ...l, text: l.text.replace(/\s+/g, " ").trim() }))
     .filter((l) => l.text && !PAGE_NUMBER.test(l.text))
     .sort((a, b) => b.y - a.y);
-}
-
-let workerReady = false;
-
-async function loadPdfjs() {
-  const pdfjs = await import("pdfjs-dist");
-  if (!workerReady) {
-    pdfjs.GlobalWorkerOptions.workerPort = new Worker(
-      new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url),
-      { type: "module" },
-    );
-    workerReady = true;
-  }
-  return pdfjs;
 }
 
 /** Satu blok per halaman: judul diambil dari tiga baris teratas. */

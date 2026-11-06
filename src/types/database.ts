@@ -5,7 +5,27 @@ export type Database = {
   
   "public": {
           Tables: {
-            "documents": {
+            "analyses": {
+                  Row: {
+                    "created_at": string,"document_id": string,"document_version": number,"guide_name": string | null,"highlight_count": number,"id": string,"input_tokens": number | null,"model": string,"output_tokens": number | null,"owner_id": string,"result": NonNullable<Json>
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"document_id": string,"document_version": number,"guide_name"?: string | null,"highlight_count"?: number,"id"?: string,"input_tokens"?: number | null,"model": string,"output_tokens"?: number | null,"owner_id"?: string,"result": NonNullable<Json>
+                  }
+                  Update: {
+                    "created_at"?: string,"document_id"?: string,"document_version"?: number,"guide_name"?: string | null,"highlight_count"?: number,"id"?: string,"input_tokens"?: number | null,"model"?: string,"output_tokens"?: number | null,"owner_id"?: string,"result"?: NonNullable<Json>
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "analyses_document_id_fkey"
+      columns: ["document_id"]
+isOneToOne: false
+      referencedRelation: "documents"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"documents": {
                   Row: {
                     "created_at": string,"extension": string,"folder": string,"id": string,"mime_type": string,"name": string,"owner_id": string,"size_bytes": number,"storage_path": string,"updated_at": string,"version": number
                   }

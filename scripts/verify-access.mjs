@@ -132,6 +132,10 @@ await check("anon: tidak bisa insert ke documents", async () => {
   const { error } = await anon.from("documents").insert(docRow(strangerPath));
   return Boolean(error);
 });
+await check("anon: tidak bisa membaca hasil analisis", async () => {
+  const { data, error } = await anon.from("analyses").select("id");
+  return Boolean(error) || data.length === 0;
+});
 await check("anon: tidak bisa melihat isi bucket", async () => {
   const { data, error } = await anon.storage.from(BUCKET).list();
   return Boolean(error) || data.length === 0;
@@ -403,6 +407,32 @@ if (mode === "local") {
     });
     await check("user lain: tidak bisa mengklaim path pemilik", async () => {
       const { error } = await b.client.from("documents").insert(docRow(pathA));
+      return Boolean(error);
+    });
+
+    const analysisRow = { document_id: docId, document_version: 1, result: { ringkasan: "uji" }, model: "uji" };
+    let analysisId = null;
+    await check("pemilik: simpan hasil analisis dokumennya", async () => {
+      const { data, error } = await a.client.from("analyses").insert(analysisRow).select("id, owner_id").single();
+      if (error) throw error;
+      analysisId = data.id;
+      return data.owner_id === a.id;
+    });
+    await check("user lain: tidak melihat hasil analisis pemilik", async () => {
+      const { data } = await b.client.from("analyses").select("id");
+      return data?.length === 0;
+    });
+    await check("user lain: tidak bisa membuat analisis untuk dokumen pemilik", async () => {
+      const { error } = await b.client.from("analyses").insert(analysisRow);
+      return Boolean(error);
+    });
+    await check("user lain: tidak bisa menghapus analisis pemilik", async () => {
+      await b.client.from("analyses").delete().eq("id", analysisId);
+      const { data } = await a.client.from("analyses").select("id").eq("id", analysisId);
+      return data?.length === 1;
+    });
+    await check("pemilik: hasil analisis tidak bisa diubah", async () => {
+      const { error } = await a.client.from("analyses").update({ model: "diubah" }).eq("id", analysisId);
       return Boolean(error);
     });
 

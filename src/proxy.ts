@@ -3,7 +3,7 @@ import { isOwnerId } from "@/lib/owner";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { redirectWithSession, updateSession } from "@/lib/supabase/proxy";
 
-const WORKSPACE_PATHS = ["/dashboard", "/folder", "/doc", "/search"];
+const WORKSPACE_PATHS = ["/dashboard", "/folder", "/doc", "/search", "/analisis"];
 
 function isWorkspace(pathname: string) {
   return WORKSPACE_PATHS.some((base) => pathname === base || pathname.startsWith(`${base}/`));

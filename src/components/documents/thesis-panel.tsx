@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download, Eye } from "lucide-react";
+import { Download, Eye, ListChecks } from "lucide-react";
 import { DocumentPreview } from "@/components/documents/document-view";
 import { UploadDialog } from "@/components/documents/upload-dialog";
 import { buttonStyles } from "@/components/ui/button";
@@ -55,6 +55,15 @@ export function ThesisPanel({ folder, title, doc, now }: ThesisPanelProps) {
           {doc ? (
             // Panel sempit (dua kolom): tombol ikon saja; panel lebar: dengan teks.
             <div className="flex shrink-0 gap-2">
+              {folder === "skripsi-lengkap" ? (
+                <Link
+                  href="/analisis"
+                  title="Cek progres"
+                  className={buttonStyles({ variant: "secondary", size: "sm", className: "px-2.5 @xl:px-3.5" })}
+                >
+                  <ListChecks aria-hidden /> <span className="sr-only @xl:not-sr-only">Cek progres</span>
+                </Link>
+              ) : null}
               <Link
                 href={`/doc/${doc.id}`}
                 title="Buka"

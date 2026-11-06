@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useState, type ReactNode } from "react";
-import { ChevronDown, LayoutGrid, type LucideIcon } from "lucide-react";
+import { ChevronDown, LayoutGrid, ListChecks, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/layout/logo";
 import { CATEGORIES, categoryHref, type Category } from "@/lib/folders";
 import { cn } from "@/lib/utils";
@@ -44,6 +44,13 @@ function SidebarNav({ pathname, onNavigate }: { pathname: string; onNavigate: Na
         label="Dashboard"
         icon={LayoutGrid}
         active={pathname === "/dashboard"}
+        onNavigate={onNavigate}
+      />
+      <NavLink
+        href="/analisis"
+        label="Cek Progres"
+        icon={ListChecks}
+        active={pathname === "/analisis"}
         onNavigate={onNavigate}
       />
       <p className="mt-5 mb-1.5 px-3 text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
