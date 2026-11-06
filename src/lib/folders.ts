@@ -74,13 +74,6 @@ export const CATEGORIES: Category[] = [
     ],
   },
   {
-    slug: "lampiran",
-    label: "Lampiran",
-    shortLabel: "Lampiran",
-    description: "Surat, instrumen, dan dokumentasi.",
-    icon: Paperclip,
-  },
-  {
     slug: "unity",
     label: "Script Unity",
     shortLabel: "Unity",
@@ -102,6 +95,13 @@ export const CATEGORIES: Category[] = [
     shortLabel: "Lainnya",
     description: "File yang belum punya tempat.",
     icon: Folder,
+  },
+  {
+    slug: "lampiran",
+    label: "Lampiran",
+    shortLabel: "Lampiran",
+    description: "Surat, instrumen, dan dokumentasi.",
+    icon: Paperclip,
   },
 ];
 
