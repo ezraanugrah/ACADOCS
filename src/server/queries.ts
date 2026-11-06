@@ -1,5 +1,5 @@
 import "server-only";
-import { getCategory } from "@/lib/folders";
+import { getCategory, hasSubfolders } from "@/lib/folders";
 import { escapeLike } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
 import { requireOwner } from "@/server/auth";
@@ -34,11 +34,21 @@ export async function listCategoryDocuments(categorySlug: string): Promise<Docum
   if (!category) return [];
   const supabase = await ownerClient();
   const query = supabase.from("documents").select(COLUMNS).order("updated_at", { ascending: false });
-  const { data, error } = category.children
+  const { data, error } = hasSubfolders(category)
     ? await query.like("folder", `${category.slug}/%`)
     : await query.eq("folder", category.slug);
   if (error) failed();
   return data;
+}
+
+/** Kunci folder yang berisi file di bawah satu kategori (untuk subfolder dinamis). */
+export async function listCategoryFolders(categorySlug: string): Promise<string[]> {
+  const category = getCategory(categorySlug);
+  if (!category) return [];
+  const supabase = await ownerClient();
+  const { data, error } = await supabase.from("documents").select("folder").like("folder", `${category.slug}/%`);
+  if (error) failed();
+  return [...new Set(data.map((row) => row.folder))];
 }
 
 export async function listFolderDocuments(folderKey: string): Promise<DocumentItem[]> {

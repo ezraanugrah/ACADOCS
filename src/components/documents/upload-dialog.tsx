@@ -1,14 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, type DragEvent } from "react";
+import { useId, useRef, useState, type DragEvent } from "react";
 import { CircleCheck, CircleX, CloudUpload, LoaderCircle, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { FileBadge } from "@/components/documents/file-badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { ACCEPT_ATTRIBUTE, checkFile, extensionOf } from "@/lib/file-rules";
-import { detectSubfolder, getCategory, type Category } from "@/lib/folders";
+import { categoryNameFor, getCategory, toSubfolderSlug, type SubFolder } from "@/lib/folders";
 import { formatBytes } from "@/lib/format";
 import { putToSignedUrl } from "@/lib/upload-client";
 import { cn } from "@/lib/utils";
@@ -19,22 +19,31 @@ type Item = {
   key: string;
   file: File;
   name: string;
-  /** Folder tujuan; null = kategori belum dipilih (mode otomatis). */
+  /** Folder tujuan; null = nama kategori masih kosong (mode kategori otomatis). */
   folder: string | null;
+  /** Nama kategori yang bisa diubah (mode kategori otomatis). */
+  category?: string;
   status: Status;
   progress: number;
   error?: string;
 };
 
-type UploadDialogProps = { folder: string; folderLabel: string; variant?: "primary" | "secondary" };
+type UploadDialogProps = {
+  folder: string;
+  folderLabel: string;
+  /** Kategori yang sudah ada, untuk kategori dengan subfolder dinamis (Script Unity). */
+  subfolders?: SubFolder[];
+  variant?: "primary" | "secondary";
+};
 
 /**
- * Upload ke satu folder. Bila `folder` adalah kategori dengan `autoRouteUploads` (Script Unity),
- * tiap file otomatis masuk ke subfoldernya sesuai nama file; yang tidak cocok dipilih manual.
+ * Upload ke satu folder. Bila `folder` adalah kategori dengan subfolder dinamis (Script Unity),
+ * tiap file masuk ke kategori sesuai namanya: kategori lama bila cocok, selain itu kategori baru.
+ * Nama kategori bisa diubah sebelum upload.
  */
-export function UploadDialog({ folder, folderLabel, variant = "primary" }: UploadDialogProps) {
-  const target = getCategory(folder);
-  const routing = target?.autoRouteUploads ? target : undefined;
+export function UploadDialog({ folder, folderLabel, subfolders = [], variant = "primary" }: UploadDialogProps) {
+  const routing = getCategory(folder)?.dynamicChildren ? folder : undefined;
+  const suggestionsId = useId();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -56,13 +65,19 @@ export function UploadDialog({ folder, folderLabel, variant = "primary" }: Uploa
           key: crypto.randomUUID(),
           file,
           name: check.ok ? check.name : file.name,
-          folder: routing ? detectSubfolder(routing, check.ok ? check.name : file.name) : folder,
+          ...(routing ? route(categoryNameFor(check.ok ? check.name : file.name, subfolders)) : { folder }),
           status: check.ok ? "siap" : "invalid",
           progress: 0,
           error: check.ok ? undefined : check.error,
         };
       });
     setItems((current) => [...current, ...added]);
+  }
+
+  /** Nama kategori → folder tujuan, mis. "Kebersihan Diri" → "unity/kebersihan-diri". */
+  function route(category: string): Pick<Item, "folder" | "category"> {
+    const slug = toSubfolderSlug(category);
+    return { category, folder: routing && slug ? `${routing}/${slug}` : null };
   }
 
   function update(key: string, patch: Partial<Item>) {
@@ -178,11 +193,20 @@ export function UploadDialog({ folder, folderLabel, variant = "primary" }: Uploa
                 key={item.key}
                 item={item}
                 routing={routing}
-                onRoute={(next) => update(item.key, { folder: next })}
+                suggestionsId={suggestionsId}
+                isNew={!!item.folder && !subfolders.some((sub) => item.folder === `${routing}/${sub.slug}`)}
+                onRename={(category) => update(item.key, route(category))}
                 onRemove={busy ? undefined : () => setItems((current) => current.filter((i) => i.key !== item.key))}
               />
             ))}
           </ul>
+        ) : null}
+        {routing ? (
+          <datalist id={suggestionsId}>
+            {subfolders.map((sub) => (
+              <option key={sub.slug} value={sub.label} />
+            ))}
+          </datalist>
         ) : null}
 
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -190,7 +214,7 @@ export function UploadDialog({ folder, folderLabel, variant = "primary" }: Uploa
             {busy
               ? `Mengunggah… ${finished}/${finished + pending.length}`
               : unrouted
-                ? `Pilih kategori untuk ${unrouted} file`
+                ? `Isi nama kategori untuk ${unrouted} file`
                 : pending.length
                   ? `${pending.length} file siap · ${formatBytes(pendingBytes)}`
                   : finished
@@ -214,14 +238,15 @@ export function UploadDialog({ folder, folderLabel, variant = "primary" }: Uploa
 
 type UploadRowProps = {
   item: Item;
-  routing?: Category;
-  onRoute: (folder: string | null) => void;
+  routing?: string;
+  suggestionsId: string;
+  isNew: boolean;
+  onRename: (category: string) => void;
   onRemove?: () => void;
 };
 
-function UploadRow({ item, routing, onRoute, onRemove }: UploadRowProps) {
+function UploadRow({ item, routing, suggestionsId, isNew, onRename, onRemove }: UploadRowProps) {
   const editable = item.status === "siap" || item.status === "gagal";
-  const subLabel = (key: string | null) => routing?.children?.find((sub) => key === `${routing.slug}/${sub.slug}`)?.label;
 
   return (
     <li className="flex items-center gap-3 rounded-xl border border-line bg-surface px-3 py-2.5">
@@ -237,26 +262,28 @@ function UploadRow({ item, routing, onRoute, onRemove }: UploadRowProps) {
         ) : (
           <p className={cn("mt-0.5 text-[12px]", item.error ? "text-danger" : "text-ink-muted")}>
             {item.error ?? (item.status === "selesai" ? "Selesai" : formatBytes(item.file.size))}
-            {routing && !editable && item.folder ? ` · ${subLabel(item.folder)}` : null}
+            {routing && !editable && item.category ? ` · ${item.category}` : null}
           </p>
         )}
         {routing && editable ? (
-          <select
-            value={item.folder ?? ""}
-            onChange={(event) => onRoute(event.target.value || null)}
-            aria-label={`Kategori untuk ${item.name}`}
-            className={cn(
-              "mt-1.5 h-8 w-full max-w-60 rounded-lg border bg-surface px-2 text-[12px] font-semibold transition-colors focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:outline-none",
-              item.folder ? "border-line text-ink" : "border-primary text-primary-strong",
-            )}
-          >
-            <option value="">Pilih kategori…</option>
-            {routing.children?.map((sub) => (
-              <option key={sub.slug} value={`${routing.slug}/${sub.slug}`}>
-                {sub.label}
-              </option>
-            ))}
-          </select>
+          <div className="mt-1.5 flex items-center gap-2">
+            <input
+              type="text"
+              value={item.category ?? ""}
+              onChange={(event) => onRename(event.target.value)}
+              list={suggestionsId}
+              maxLength={60}
+              placeholder="Nama kategori"
+              aria-label={`Kategori untuk ${item.name}`}
+              className={cn(
+                "h-8 w-full max-w-60 min-w-0 rounded-lg border bg-surface px-2 text-[12px] font-semibold text-ink transition-colors placeholder:font-medium placeholder:text-ink-muted focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:outline-none",
+                item.folder ? "border-line" : "border-primary",
+              )}
+            />
+            {isNew ? (
+              <span className="shrink-0 rounded-full bg-soft px-2 py-0.5 text-[11px] font-semibold text-primary-strong">Baru</span>
+            ) : null}
+          </div>
         ) : null}
       </div>
       {item.status === "selesai" ? (

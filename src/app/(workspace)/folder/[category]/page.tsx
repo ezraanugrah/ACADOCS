@@ -7,7 +7,7 @@ import { FolderHeader } from "@/components/documents/folder-header";
 import { FolderViewer } from "@/components/documents/folder-viewer";
 import { ReportSplitDialog } from "@/components/documents/report-split-dialog";
 import { UploadDialog } from "@/components/documents/upload-dialog";
-import { categoryHref, getCategory, opensFileDirectly, type Category } from "@/lib/folders";
+import { categoryHref, getCategory, hasSubfolders, opensFileDirectly, subfoldersOf, type Category } from "@/lib/folders";
 import { listCategoryDocuments, summarize } from "@/server/queries";
 import type { DocumentItem } from "@/types/document";
 
@@ -30,9 +30,11 @@ export default async function CategoryPage({ params, searchParams }: PageProps<"
         description={category.description}
         crumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: category.label }]}
         stats={total}
-        action={headerAction(category)}
+        action={headerAction(category, documents)}
       />
-      {category.children ? (
+      {category.dynamicChildren && documents.length === 0 ? (
+        <FolderEmptyState icon={category.icon} label={category.label} action={uploadButton(category, documents, "secondary")} />
+      ) : hasSubfolders(category) ? (
         <SubfolderGrid category={category} documents={documents} />
       ) : documents.length > 0 && opensFileDirectly(category.slug) ? (
         // Sekali klik dari sidebar langsung menampilkan file (terbaru atau ?file=…).
@@ -59,10 +61,10 @@ export default async function CategoryPage({ params, searchParams }: PageProps<"
  * Draft & Skripsi Lengkap punya tombol pecah laporan; folder biasa hanya Upload.
  * Script Unity: Upload di sini otomatis masuk ke kategori sesuai nama file.
  */
-function headerAction(category: Category) {
+function headerAction(category: Category, documents: DocumentItem[]) {
   if (category.slug === "draft") return <ReportSplitDialog variant="primary" />;
-  if (category.children && !category.autoRouteUploads) return null;
-  const upload = <UploadDialog folder={category.slug} folderLabel={category.label} />;
+  if (category.children) return null;
+  const upload = uploadButton(category, documents);
   if (category.slug !== "skripsi-lengkap") return upload;
   return (
     <div className="flex flex-wrap gap-2">
@@ -72,12 +74,17 @@ function headerAction(category: Category) {
   );
 }
 
+function uploadButton(category: Category, documents: DocumentItem[], variant?: "primary" | "secondary") {
+  const subfolders = category.dynamicChildren ? subfoldersOf(category, documents.map((doc) => doc.folder)) : undefined;
+  return <UploadDialog folder={category.slug} folderLabel={category.label} subfolders={subfolders} variant={variant} />;
+}
+
 function SubfolderGrid({ category, documents }: { category: Category; documents: DocumentItem[] }) {
   const byFolder = summarize(documents, (doc) => doc.folder);
   return (
     <section aria-label={`Subfolder ${category.label}`}>
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-        {category.children?.map((sub) => (
+        {subfoldersOf(category, Object.keys(byFolder)).map((sub) => (
           <FolderCard
             key={sub.slug}
             href={`${categoryHref(category.slug)}/${sub.slug}`}

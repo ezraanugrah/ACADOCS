@@ -1,14 +1,16 @@
 import Link from "next/link";
-import type { Category } from "@/lib/folders";
+import type { Category, SubFolder } from "@/lib/folders";
 import { categoryHref } from "@/lib/folders";
 import { cn } from "@/lib/utils";
 
+type SubfolderTabsProps = { category: Category; subfolders: SubFolder[]; active: string };
+
 /** Chip antar-subfolder (Abstract · BAB 1 … BAB 5). Geser horizontal di HP. */
-export function SubfolderTabs({ category, active }: { category: Category; active: string }) {
+export function SubfolderTabs({ category, subfolders, active }: SubfolderTabsProps) {
   return (
     <nav aria-label={`Subfolder ${category.label}`} className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
       <ul className="flex w-max gap-2">
-        {category.children?.map((sub) => {
+        {subfolders.map((sub) => {
           const current = sub.slug === active;
           return (
             <li key={sub.slug}>

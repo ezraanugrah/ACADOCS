@@ -8,7 +8,7 @@ import { FileRow } from "@/components/documents/file-row";
 import { FolderCard } from "@/components/documents/folder-card";
 import { SearchBar } from "@/components/search/search-bar";
 import { Card } from "@/components/ui/card";
-import { CATEGORIES, categoryHref, categorySlugOf } from "@/lib/folders";
+import { CATEGORIES, categoryHref, categorySlugOf, subfoldersOf } from "@/lib/folders";
 import { getGreeting } from "@/lib/format";
 import { listAllDocuments, summarize } from "@/server/queries";
 
@@ -30,6 +30,7 @@ async function DashboardContent() {
   const featured = documents.find((doc) => doc.folder === "skripsi-lengkap") ?? null;
   const recent = documents.slice(0, 5);
   const categories = CATEGORIES.filter((category) => category.slug !== "skripsi-lengkap");
+  const folders = [...new Set(documents.map((doc) => doc.folder))];
 
   return (
     <div className="flex flex-col gap-8 sm:gap-10">
@@ -61,7 +62,7 @@ async function DashboardContent() {
               label={category.label}
               description={category.description}
               stats={byCategory[category.slug]}
-              subfolders={category.children?.length}
+              subfolders={subfoldersOf(category, folders).length}
             />
           ))}
         </div>

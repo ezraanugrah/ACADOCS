@@ -9,12 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type SubFolder = {
-  slug: string;
-  label: string;
-  /** Kata kunci di nama file untuk menentukan subfolder otomatis saat upload. */
-  match?: string[];
-};
+export type SubFolder = { slug: string; label: string };
 
 export type Category = {
   slug: string;
@@ -22,11 +17,13 @@ export type Category = {
   shortLabel: string;
   description: string;
   icon: LucideIcon;
+  /** Subfolder tetap (tampil di sidebar). */
   children?: SubFolder[];
-  /** Subfolder hanya tampil di dalam halaman kategori, tidak di sidebar. */
-  hideChildrenInNav?: boolean;
-  /** Upload di halaman kategori otomatis masuk ke subfolder sesuai nama file. */
-  autoRouteUploads?: boolean;
+  /**
+   * Subfolder tidak tetap: dibuat otomatis dari nama file saat upload (mis. Script Unity).
+   * Hanya tampil di halaman kategori; kategori yang kosong hilang sendiri.
+   */
+  dynamicChildren?: boolean;
 };
 
 /** Kategori tetap Acadocs. Maksimal 2 level: kategori → subfolder. */
@@ -79,21 +76,9 @@ export const CATEGORIES: Category[] = [
     slug: "unity",
     label: "Script Unity",
     shortLabel: "Unity",
-    description: "Script game per kategori.",
+    description: "Script game, kategorinya dari nama file.",
     icon: FileCode,
-    hideChildrenInNav: true,
-    autoRouteUploads: true,
-    children: [
-      { slug: "bangun-tidur", label: "Bangun Tidur", match: ["bangun tidur", "bangun pagi"] },
-      { slug: "beribadah", label: "Beribadah", match: ["beribadah", "ibadah"] },
-      { slug: "berolahraga", label: "Berolahraga", match: ["berolahraga", "olahraga"] },
-      { slug: "makan-sehat-bergizi", label: "Makan Sehat Bergizi", match: ["makan sehat", "bergizi"] },
-      { slug: "gemar-belajar", label: "Gemar Belajar", match: ["gemar belajar", "belajar"] },
-      { slug: "bermasyarakat", label: "Bermasyarakat", match: ["bermasyarakat", "masyarakat"] },
-      { slug: "pemandu", label: "Pemandu", match: ["pemandu"] },
-      { slug: "animasi", label: "Animasi", match: ["animasi", "animation"] },
-      { slug: "sound-effect", label: "Sound Effect", match: ["sound effect", "soundeffect", "sfx"] },
-    ],
+    dynamicChildren: true,
   },
   {
     slug: "audio-assets",
@@ -111,19 +96,72 @@ export const CATEGORIES: Category[] = [
   },
 ];
 
-/** Kunci folder daun, mis. "skripsi-lengkap" atau "draft/bab-1". Sama dengan nilai kolom `folder` di database. */
+/** Kunci folder tetap, mis. "skripsi-lengkap" atau "draft/bab-1". Sama dengan nilai kolom `folder` di database. */
 export const FOLDER_KEYS = CATEGORIES.flatMap((category) =>
   category.children
     ? category.children.map((sub) => `${category.slug}/${sub.slug}`)
-    : [category.slug],
+    : category.dynamicChildren
+      ? []
+      : [category.slug],
 );
 
+/** Slug subfolder dinamis: huruf kecil, angka, dan tanda hubung. Sinkron dengan constraint DB. */
+export const MAX_SUBFOLDER_SLUG = 60;
+const SUBFOLDER_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export function isSubfolderSlug(value: string) {
+  return value.length <= MAX_SUBFOLDER_SLUG && SUBFOLDER_SLUG.test(value);
+}
+
+/** "draft/bab-1" atau subfolder dinamis seperti "unity/kebersihan". */
 export function isFolderKey(value: string) {
-  return FOLDER_KEYS.includes(value);
+  if (FOLDER_KEYS.includes(value)) return true;
+  const [categorySlug, subSlug, ...rest] = value.split("/");
+  return !!getCategory(categorySlug)?.dynamicChildren && rest.length === 0 && isSubfolderSlug(subSlug ?? "");
 }
 
 export function getCategory(slug: string) {
   return CATEGORIES.find((category) => category.slug === slug);
+}
+
+/** Kategori yang isinya dibagi ke subfolder (tetap atau dinamis). */
+export function hasSubfolders(category: Category) {
+  return !!category.children || !!category.dynamicChildren;
+}
+
+/** "Kebersihan Diri" → "kebersihan-diri" */
+export function toSubfolderSlug(label: string) {
+  return label
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .slice(0, MAX_SUBFOLDER_SLUG)
+    .replace(/^-+|-+$/g, "");
+}
+
+/** "kebersihan-diri" → "Kebersihan Diri" */
+function labelFromSlug(slug: string) {
+  return slug
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+export function subfolderLabel(category: Category, subSlug: string) {
+  return category.children?.find((child) => child.slug === subSlug)?.label ?? labelFromSlug(subSlug);
+}
+
+/** Subfolder sebuah kategori: daftar tetap, atau (dinamis) yang punya file di `folders`, urut nama. */
+export function subfoldersOf(category: Category, folders: string[] = []): SubFolder[] {
+  if (category.children) return category.children;
+  if (!category.dynamicChildren) return [];
+  const prefix = `${category.slug}/`;
+  const slugs = new Set(folders.filter((key) => key.startsWith(prefix)).map((key) => key.slice(prefix.length)));
+  return [...slugs]
+    .filter(isSubfolderSlug)
+    .map((slug) => ({ slug, label: labelFromSlug(slug) }))
+    .sort((a, b) => a.label.localeCompare(b.label, "id", { numeric: true }));
 }
 
 export function categoryHref(slug: string) {
@@ -140,8 +178,8 @@ export function folderLabel(key: string) {
   const category = getCategory(categorySlug);
   if (!category) return key;
   if (!subSlug) return category.label;
-  const sub = category.children?.find((child) => child.slug === subSlug);
-  return sub ? `${category.shortLabel} · ${sub.label}` : category.label;
+  if (!category.children?.some((child) => child.slug === subSlug) && !category.dynamicChildren) return category.label;
+  return `${category.shortLabel} · ${subfolderLabel(category, subSlug)}`;
 }
 
 /**
@@ -152,13 +190,32 @@ export function opensFileDirectly(key: string) {
   return key.startsWith("draft/") || key.startsWith("jurnal/") || key.startsWith("unity/") || key === "audio-assets";
 }
 
-/** Subfolder yang cocok dengan nama file (mis. "Script Beribadah.zip" → "unity/beribadah"), atau null. */
-export function detectSubfolder(category: Category, fileName: string) {
-  const name = ` ${fileName.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
-  const sub = category.children?.find((child) =>
-    (child.match ?? [child.label]).some((term) => name.includes(` ${term.toLowerCase()} `)),
-  );
-  return sub ? `${category.slug}/${sub.slug}` : null;
+const NAME_PREFIX = /^(scripts?|unity)$/i;
+const NAME_SUFFIX = /^(v(er(si(on)?)?)?\d+(\.\d+)*|\d+|final|fix|baru|new|copy|salinan|revisi|rev\d*)$/i;
+
+/**
+ * Nama kategori untuk file subfolder dinamis.
+ * Kategori yang sudah ada diutamakan bila namanya muncul di nama file
+ * ("Script Beribadah v2.zip" → "Beribadah"); selain itu kategori baru dari nama file
+ * ("Script_Kebersihan-Diri.zip" → "Kebersihan Diri", "PlayerController.cs" → "Player Controller").
+ */
+export function categoryNameFor(fileName: string, existing: SubFolder[]) {
+  const dot = fileName.lastIndexOf(".");
+  const base = (dot > 0 ? fileName.slice(0, dot) : fileName)
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+
+  const plain = ` ${toSubfolderSlug(base).replace(/-/g, " ")} `;
+  const known = existing
+    .filter((sub) => plain.includes(` ${sub.slug.replace(/-/g, " ")} `))
+    .sort((a, b) => b.slug.length - a.slug.length)[0];
+  if (known) return known.label;
+
+  const words = base.split(" ").filter(Boolean);
+  while (words.length > 1 && NAME_PREFIX.test(words[0])) words.shift();
+  while (words.length > 1 && NAME_SUFFIX.test(words[words.length - 1])) words.pop();
+  return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 }
 
 /** "draft/bab-3" → kategori "draft" */

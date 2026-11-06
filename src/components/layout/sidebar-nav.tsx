@@ -50,7 +50,7 @@ function SidebarNav({ pathname, onNavigate }: { pathname: string; onNavigate: Na
         Kategori
       </p>
       {CATEGORIES.map((category) =>
-        category.children && !category.hideChildrenInNav ? (
+        category.children ? (
           <NavGroup
             key={category.slug}
             category={category}
@@ -65,8 +65,8 @@ function SidebarNav({ pathname, onNavigate }: { pathname: string; onNavigate: Na
             icon={category.icon}
             active={
               pathname === categoryHref(category.slug) ||
-              // Subfolder tersembunyi (mis. kategori Script Unity) tetap menandai item induk.
-              (!!category.hideChildrenInNav && pathname.startsWith(`${categoryHref(category.slug)}/`))
+              // Subfolder dinamis (kategori Script Unity) tetap menandai item induk.
+              pathname.startsWith(`${categoryHref(category.slug)}/`)
             }
             onNavigate={onNavigate}
           />
