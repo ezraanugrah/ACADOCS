@@ -1,22 +1,30 @@
 import "server-only";
 import { normalizeAnalysis, type SavedAnalysis } from "@/lib/analysis";
-import { anthropicKeyProblem, cleanAnthropicKey } from "@/lib/anthropic-key";
+import { cleanOpenAIKey, openAIKeyProblem } from "@/lib/openai-key";
+import { cleanEnvValue } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { requireOwner } from "@/server/auth";
 
-/** API key Anthropic dari env server, sudah dibersihkan. */
-export function anthropicApiKey() {
-  return cleanAnthropicKey(process.env.ANTHROPIC_API_KEY);
+/** Model bawaan; bisa diganti lewat env OPENAI_MODEL tanpa mengubah kode. */
+export const DEFAULT_OPENAI_MODEL = "gpt-6-sol";
+
+/** API key OpenAI dari env server, sudah dibersihkan. Tidak pernah dikirim ke browser. */
+export function openAIApiKey() {
+  return cleanOpenAIKey(process.env.OPENAI_API_KEY);
 }
 
-/** Fitur Cek Progres aktif bila API key Anthropic tersedia di server. */
+export function analysisModel() {
+  return cleanEnvValue(process.env.OPENAI_MODEL) || DEFAULT_OPENAI_MODEL;
+}
+
+/** Fitur Cek Progres aktif bila API key OpenAI tersedia di server. */
 export function aiConfigured() {
-  return !!anthropicApiKey();
+  return !!openAIApiKey();
 }
 
-/** Pesan bila nilai ANTHROPIC_API_KEY jelas salah (dicek sebelum memanggil Anthropic). */
+/** Pesan bila nilai OPENAI_API_KEY jelas salah (dicek sebelum memanggil OpenAI). */
 export function apiKeyProblem() {
-  return anthropicKeyProblem(anthropicApiKey());
+  return openAIKeyProblem(openAIApiKey());
 }
 
 /** Analisis terbaru untuk satu dokumen (versi berapa pun), atau null. */

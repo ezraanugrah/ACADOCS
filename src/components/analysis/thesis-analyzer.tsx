@@ -13,7 +13,7 @@ type FileInfo = { id: string; name: string; extension: string; version: number }
 type ThesisAnalyzerProps = {
   thesis: FileInfo;
   guide: FileInfo | null;
-  /** API key Anthropic tersedia di server. */
+  /** API key OpenAI tersedia di server. */
   ready: boolean;
   hasResult: boolean;
 };
@@ -162,7 +162,7 @@ export function ThesisAnalyzer({ thesis, guide, ready, hasResult }: ThesisAnalyz
 
       {!ready ? (
         <Notice>
-          Fitur ini butuh API key Anthropic di server. Tambahkan <code className="font-mono">ANTHROPIC_API_KEY</code> di
+          Fitur ini butuh API key OpenAI di server. Tambahkan <code className="font-mono">OPENAI_API_KEY</code> di
           Vercel (Settings → Environment Variables), lalu redeploy.
         </Notice>
       ) : !thesisSupported ? (
@@ -170,8 +170,8 @@ export function ThesisAnalyzer({ thesis, guide, ready, hasResult }: ThesisAnalyz
       ) : !busy && !steps ? (
         <p className="mt-4 text-meta text-ink-muted">
           AI membaca bagian yang kamu stabilo dan bagian yang masih kosong, membandingkan strukturnya dengan skripsi
-          panduan, lalu menyusun urutan kerja. Butuh ±1–3 menit; biaya sekitar Rp5–10 ribu per analisis dari kredit
-          Anthropic. Naskahmu dikirim ke Anthropic hanya untuk analisis ini.
+          panduan, lalu menyusun urutan kerja. Butuh ±1–3 menit; biaya sekitar Rp2–6 ribu per analisis dari kredit
+          OpenAI. Naskahmu dikirim ke OpenAI hanya untuk analisis ini dan tidak disimpan di sana.
         </p>
       ) : null}
 

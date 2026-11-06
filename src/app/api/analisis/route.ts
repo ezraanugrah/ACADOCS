@@ -1,16 +1,15 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { ANALYSIS_SCHEMA, normalizeAnalysis } from "@/lib/analysis";
 import { MAX_GUIDE_CHARS, MAX_THESIS_CHARS } from "@/lib/thesis-scan";
 import { createClient } from "@/lib/supabase/server";
 import { analysisPrompt, ANALYSIS_SYSTEM } from "@/server/analysis-prompt";
-import { aiConfigured, anthropicApiKey, apiKeyProblem } from "@/server/analysis";
+import { aiConfigured, analysisModel, apiKeyProblem, openAIApiKey } from "@/server/analysis";
 import { getOwner } from "@/server/auth";
 import { getDocument } from "@/server/queries";
 
 // Analisis naskah panjang bisa beberapa menit.
 export const maxDuration = 300;
 
-const MODEL = "claude-opus-5-5";
 const TIME_LIMIT_MS = 285_000;
 
 type Body = {
@@ -45,31 +44,33 @@ function readBody(raw: unknown): Body | null {
 const fail = (status: number, error: string) => Response.json({ error }, { status });
 
 /** Pesan yang bisa dipahami untuk kegagalan layanan AI (tanpa membocorkan detail teknis). */
-function aiError(error: unknown) {
-  if (error instanceof Anthropic.AuthenticationError) {
-    return "Anthropic menolak API key ini: salah salin, sudah dihapus/dinonaktifkan, atau milik akun lain. Buat key baru di console.anthropic.com → API Keys, ganti nilai ANTHROPIC_API_KEY di Vercel, lalu redeploy.";
+function aiError(error: unknown, model: string) {
+  if (error instanceof OpenAI.AuthenticationError) {
+    return "OpenAI menolak API key ini: salah salin, sudah dihapus, atau milik project lain. Buat key baru di platform.openai.com → API keys, ganti nilai OPENAI_API_KEY di Vercel, lalu redeploy.";
   }
-  if (error instanceof Anthropic.PermissionDeniedError) {
-    return "API key ini tidak punya izin memakai model Claude yang dibutuhkan. Periksa pengaturan workspace di console.anthropic.com, atau buat key dari workspace lain.";
+  if (error instanceof OpenAI.PermissionDeniedError) {
+    return `API key ini tidak punya izin memakai model ${model}. Periksa izin project di platform.openai.com, atau atur OPENAI_MODEL ke model yang tersedia.`;
   }
-  if (error instanceof Anthropic.NotFoundError) return "Model Claude untuk analisis tidak tersedia di akun Anthropic ini.";
-  if (error instanceof Anthropic.RateLimitError) return "Batas pemakaian AI tercapai. Coba lagi beberapa menit lagi.";
-  if (error instanceof Anthropic.BadRequestError) {
-    return /credit|billing|balance/i.test(error.message)
-      ? "Saldo kredit Anthropic habis. Isi ulang di console.anthropic.com lalu coba lagi."
-      : "Permintaan analisis ditolak layanan AI. Coba lagi, atau kabari bila terus terjadi.";
+  if (error instanceof OpenAI.NotFoundError) {
+    return `Model ${model} tidak tersedia untuk akun OpenAI-mu. Atur OPENAI_MODEL di Vercel ke model yang tersedia, lalu redeploy.`;
   }
-  if (error instanceof Anthropic.APIConnectionTimeoutError) return "Analisis terlalu lama. Coba lagi sebentar lagi.";
-  if (error instanceof Anthropic.APIUserAbortError) return "Analisis dihentikan karena terlalu lama.";
-  if (error instanceof Anthropic.APIConnectionError) return "Tidak bisa terhubung ke layanan AI. Coba lagi.";
-  if (error instanceof Anthropic.APIError) return "Layanan AI sedang sibuk. Coba lagi sebentar lagi.";
+  if (error instanceof OpenAI.RateLimitError) {
+    return error.code === "insufficient_quota"
+      ? "Saldo/kuota OpenAI habis. Isi kredit di platform.openai.com → Billing, lalu coba lagi."
+      : "Batas pemakaian OpenAI tercapai. Coba lagi beberapa menit lagi.";
+  }
+  if (error instanceof OpenAI.BadRequestError) return "Permintaan analisis ditolak OpenAI. Coba lagi, atau kabari bila terus terjadi.";
+  if (error instanceof OpenAI.APIConnectionTimeoutError) return "Analisis terlalu lama. Coba lagi sebentar lagi.";
+  if (error instanceof OpenAI.APIUserAbortError) return "Analisis dihentikan karena terlalu lama.";
+  if (error instanceof OpenAI.APIConnectionError) return "Tidak bisa terhubung ke OpenAI. Coba lagi.";
+  if (error instanceof OpenAI.APIError) return "Layanan OpenAI sedang sibuk. Coba lagi sebentar lagi.";
   return "Analisis gagal. Coba lagi.";
 }
 
 export async function POST(request: Request) {
   const owner = await getOwner();
   if (!owner) return fail(401, "Sesi berakhir. Masuk lagi untuk melanjutkan.");
-  if (!aiConfigured()) return fail(503, "Fitur Cek Progres belum disiapkan: ANTHROPIC_API_KEY belum diisi di server.");
+  if (!aiConfigured()) return fail(503, "Fitur Cek Progres belum disiapkan: OPENAI_API_KEY belum diisi di server.");
   const keyProblem = apiKeyProblem();
   if (keyProblem) return fail(503, keyProblem);
 
@@ -87,6 +88,7 @@ export async function POST(request: Request) {
   const guideDoc = body.guide ? await getDocument(body.guide.documentId) : null;
   if (body.guide && (!guideDoc || guideDoc.folder !== "skripsi-panduan")) return fail(404, "File skripsi panduan tidak ditemukan.");
   const input = body;
+  const model = analysisModel();
 
   const encoder = new TextEncoder();
   const signal = AbortSignal.any([request.signal, AbortSignal.timeout(TIME_LIMIT_MS)]);
@@ -105,43 +107,46 @@ export async function POST(request: Request) {
       const heartbeat = setInterval(() => send({ type: "progress", written }), 5000);
 
       try {
-        const client = new Anthropic({ apiKey: anthropicApiKey() });
-        const response = client.beta.messages.stream(
+        const client = new OpenAI({ apiKey: openAIApiKey() });
+        const response = client.responses.stream(
           {
-            model: MODEL,
-            max_tokens: 64000,
-            betas: ["server-side-fallback-2026-07-01"],
-            fallbacks: "default",
-            thinking: { type: "adaptive" },
-            output_config: { effort: "high", format: { type: "json_schema", schema: ANALYSIS_SCHEMA } },
-            system: ANALYSIS_SYSTEM,
-            messages: [
-              {
-                role: "user",
-                content: analysisPrompt({
-                  thesisName: doc.name,
-                  format: input.thesis.format,
-                  text: input.thesis.text,
-                  highlightCount: input.thesis.highlightCount,
-                  guide: guideDoc && input.guide ? { name: guideDoc.name, outline: input.guide.outline } : undefined,
-                }),
-              },
-            ],
+            model,
+            instructions: ANALYSIS_SYSTEM,
+            input: analysisPrompt({
+              thesisName: doc.name,
+              format: input.thesis.format,
+              text: input.thesis.text,
+              highlightCount: input.thesis.highlightCount,
+              guide: guideDoc && input.guide ? { name: guideDoc.name, outline: input.guide.outline } : undefined,
+            }),
+            text: { format: { type: "json_schema", name: "analisis_skripsi", schema: ANALYSIS_SCHEMA, strict: true } },
+            reasoning: { effort: "medium" },
+            max_output_tokens: 40000,
+            // Naskah tidak disimpan di OpenAI setelah analisis selesai.
+            store: false,
           },
           { signal },
         );
-        response.on("text", (delta) => {
-          written += delta.length;
+        response.on("response.output_text.delta", (event) => {
+          written += event.delta.length;
         });
 
-        const message = await response.finalMessage();
-        if (message.stop_reason === "refusal") throw new Error("Layanan AI menolak menganalisis naskah ini.");
-        if (message.stop_reason === "max_tokens") throw new Error("Hasil analisis terlalu panjang dan terpotong. Coba lagi.");
+        const final = await response.finalResponse();
+        const refused = final.output.some(
+          (item) => item.type === "message" && item.content.some((part) => part.type === "refusal"),
+        );
+        if (refused) throw new Error("OpenAI menolak menganalisis naskah ini.");
+        if (final.status === "incomplete") {
+          throw new Error(
+            final.incomplete_details?.reason === "max_output_tokens"
+              ? "Hasil analisis terlalu panjang dan terpotong. Coba lagi."
+              : "Analisis tidak selesai. Coba lagi.",
+          );
+        }
 
-        const json = message.content.map((block) => (block.type === "text" ? block.text : "")).join("");
         let result = null;
         try {
-          result = normalizeAnalysis(JSON.parse(json));
+          result = normalizeAnalysis(JSON.parse(final.output_text));
         } catch {
           result = null;
         }
@@ -156,19 +161,19 @@ export async function POST(request: Request) {
             guide_name: guideDoc?.name ?? null,
             highlight_count: input.thesis.highlightCount,
             result,
-            model: message.model,
-            input_tokens: message.usage.input_tokens,
-            output_tokens: message.usage.output_tokens,
+            model: final.model ?? model,
+            input_tokens: final.usage?.input_tokens ?? null,
+            output_tokens: final.usage?.output_tokens ?? null,
           })
           .select("id")
           .single();
         if (error || !data) throw new Error("Hasil analisis gagal disimpan. Coba lagi.");
         send({ type: "done", id: data.id });
       } catch (error) {
-        if (error instanceof Anthropic.AnthropicError) {
-          // Hanya status/kelas error yang dicatat — tidak pernah isi naskah atau API key.
-          console.error("[acadocs] analisis AI gagal", error.constructor.name, error instanceof Anthropic.APIError ? error.status : "");
-          send({ type: "error", message: aiError(error) });
+        if (error instanceof OpenAI.OpenAIError) {
+          // Hanya kelas/status error yang dicatat — tidak pernah isi naskah atau API key.
+          console.error("[acadocs] analisis AI gagal", error.constructor.name, error instanceof OpenAI.APIError ? error.status : "");
+          send({ type: "error", message: aiError(error, model) });
         } else {
           send({ type: "error", message: error instanceof Error && error.message ? error.message : "Analisis gagal. Coba lagi." });
         }
