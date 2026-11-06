@@ -70,8 +70,20 @@ export const CATEGORIES: Category[] = [
     slug: "unity",
     label: "Script Unity",
     shortLabel: "Unity",
-    description: "Kode C# dan paket proyek game.",
+    description: "Script game per kategori.",
     icon: FileCode,
+    children: [
+      { slug: "bangun-tidur", label: "Bangun Tidur" },
+      { slug: "beribadah", label: "Beribadah" },
+      { slug: "berolahraga", label: "Berolahraga" },
+      { slug: "makan-sehat-bergizi", label: "Makan Sehat Bergizi" },
+      { slug: "gemar-belajar", label: "Gemar Belajar" },
+      { slug: "bermasyarakat", label: "Bermasyarakat" },
+      { slug: "pemandu", label: "Pemandu" },
+      { slug: "animasi", label: "Animasi" },
+      { slug: "sound-effect", label: "Sound Effect" },
+      { slug: "lainnya", label: "Script Lain" },
+    ],
   },
   {
     slug: "audio-assets",
@@ -127,7 +139,7 @@ export function folderLabel(key: string) {
  * dengan daftar semua file di bawahnya.
  */
 export function opensFileDirectly(key: string) {
-  return key.startsWith("draft/") || key.startsWith("jurnal/") || key === "unity" || key === "audio-assets";
+  return key.startsWith("draft/") || key.startsWith("jurnal/") || key.startsWith("unity/") || key === "audio-assets";
 }
 
 /** "draft/bab-3" → kategori "draft" */

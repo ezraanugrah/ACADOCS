@@ -105,11 +105,10 @@ type NavGroupProps = { category: Category; pathname: string; onNavigate: Navigat
 
 function NavGroup({ category, pathname, onNavigate }: NavGroupProps) {
   const href = categoryHref(category.slug);
-  const inGroup = pathname === href || pathname.startsWith(`${href}/`);
   // null = ikuti rute aktif; true/false = pilihan pengguna.
   const [toggled, setToggled] = useState<boolean | null>(null);
-  // Draft & Referensi Jurnal selalu terbuka agar subfolder bisa dibuka dengan sekali klik.
-  const open = toggled ?? (inGroup || category.slug === "draft" || category.slug === "jurnal");
+  // Semua grup (Draft, Jurnal, Script Unity) terbuka agar subfolder bisa dibuka dengan sekali klik.
+  const open = toggled ?? true;
   const listId = `nav-${category.slug}`;
 
   return (

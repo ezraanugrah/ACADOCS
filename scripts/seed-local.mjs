@@ -15,7 +15,7 @@ const SAMPLES = [
   ["jurnal/jurnal-2", "Jurnal 2 - Pembentukan Karakter Anak.pdf", "application/pdf", 1],
   ["jurnal/jurnal-3", "Jurnal 3 - Research and Development.pdf", "application/pdf", 1],
   ["lampiran", "Lampiran - Instrumen Validasi Ahli.pdf", "application/pdf", 1],
-  ["unity", "PlayerController.cs", "text/plain", 2],
+  ["unity/lainnya", "PlayerController.cs", "text/plain", 2],
   ["audio-assets", "Narasi_Intro.mp3", "audio/mpeg", 1],
 ];
 

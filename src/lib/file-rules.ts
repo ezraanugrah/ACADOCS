@@ -71,7 +71,9 @@ export function sanitizeFileName(raw: string) {
     .replace(/[\\/:*?"<>|]/g, "-")
     .replace(/\s+/g, " ")
     .trim()
-    .replace(/^[.\s]+/, "");
+    .replace(/^[.\s]+/, "")
+    // Akhiran unduhan Google Drive: "Nama-20261106T025314Z-1-001.zip" → "Nama.zip"
+    .replace(/-\d{8}T\d{6}Z-\d+-\d+(?=\.[A-Za-z0-9]+$)/, "");
   const extension = extensionOf(cleaned);
   if (cleaned.length <= MAX_NAME_LENGTH || !extension) return cleaned.slice(0, MAX_NAME_LENGTH);
   const base = cleaned.slice(0, cleaned.length - extension.length - 1);
