@@ -43,7 +43,7 @@ type UploadDialogProps = {
  */
 export function UploadDialog({ folder, folderLabel, subfolders = [], variant = "primary" }: UploadDialogProps) {
   const routing = getCategory(folder)?.dynamicChildren ? folder : undefined;
-  const suggestionsId = useId();
+  const listId = useId();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -53,6 +53,16 @@ export function UploadDialog({ folder, folderLabel, subfolders = [], variant = "
 
   const pending = items.filter((item) => item.status === "siap" || item.status === "gagal");
   const unrouted = pending.filter((item) => !item.folder).length;
+  /** Saran nama kategori: yang sudah ada + yang diketik di baris lain (satu per slug). */
+  function suggestionsFor(current: Item) {
+    const labels = new Map<string, string>();
+    const typed = items.filter((item) => item.key !== current.key).map((item) => item.category?.trim() ?? "");
+    for (const label of [...subfolders.map((sub) => sub.label), ...typed]) {
+      const slug = toSubfolderSlug(label);
+      if (slug && !labels.has(slug)) labels.set(slug, label);
+    }
+    return [...labels.values()];
+  }
   const pendingBytes = pending.reduce((sum, item) => sum + item.file.size, 0);
   const finished = items.filter((item) => item.status === "selesai").length;
 
@@ -193,20 +203,14 @@ export function UploadDialog({ folder, folderLabel, subfolders = [], variant = "
                 key={item.key}
                 item={item}
                 routing={routing}
-                suggestionsId={suggestionsId}
+                listId={`${listId}-${item.key}`}
+                suggestions={routing ? suggestionsFor(item) : []}
                 isNew={!!item.folder && !subfolders.some((sub) => item.folder === `${routing}/${sub.slug}`)}
                 onRename={(category) => update(item.key, route(category))}
                 onRemove={busy ? undefined : () => setItems((current) => current.filter((i) => i.key !== item.key))}
               />
             ))}
           </ul>
-        ) : null}
-        {routing ? (
-          <datalist id={suggestionsId}>
-            {subfolders.map((sub) => (
-              <option key={sub.slug} value={sub.label} />
-            ))}
-          </datalist>
         ) : null}
 
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -239,13 +243,14 @@ export function UploadDialog({ folder, folderLabel, subfolders = [], variant = "
 type UploadRowProps = {
   item: Item;
   routing?: string;
-  suggestionsId: string;
+  listId: string;
+  suggestions: string[];
   isNew: boolean;
   onRename: (category: string) => void;
   onRemove?: () => void;
 };
 
-function UploadRow({ item, routing, suggestionsId, isNew, onRename, onRemove }: UploadRowProps) {
+function UploadRow({ item, routing, listId, suggestions, isNew, onRename, onRemove }: UploadRowProps) {
   const editable = item.status === "siap" || item.status === "gagal";
 
   return (
@@ -271,7 +276,7 @@ function UploadRow({ item, routing, suggestionsId, isNew, onRename, onRemove }: 
               type="text"
               value={item.category ?? ""}
               onChange={(event) => onRename(event.target.value)}
-              list={suggestionsId}
+              list={listId}
               maxLength={60}
               placeholder="Nama kategori"
               aria-label={`Kategori untuk ${item.name}`}
@@ -280,6 +285,11 @@ function UploadRow({ item, routing, suggestionsId, isNew, onRename, onRemove }: 
                 item.folder ? "border-line" : "border-primary",
               )}
             />
+            <datalist id={listId}>
+              {suggestions.map((label) => (
+                <option key={label} value={label} />
+              ))}
+            </datalist>
             {isNew ? (
               <span className="shrink-0 rounded-full bg-soft px-2 py-0.5 text-[11px] font-semibold text-primary-strong">Baru</span>
             ) : null}

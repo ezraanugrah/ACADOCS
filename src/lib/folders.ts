@@ -84,8 +84,9 @@ export const CATEGORIES: Category[] = [
     slug: "audio-assets",
     label: "Audio & Assets",
     shortLabel: "Audio",
-    description: "Voice over, efek suara, dan aset.",
+    description: "Voice over, efek suara, dan aset, kategorinya dari nama file.",
     icon: AudioLines,
+    dynamicChildren: true,
   },
   {
     slug: "lainnya",
@@ -187,22 +188,24 @@ export function folderLabel(key: string) {
  * dengan daftar semua file di bawahnya.
  */
 export function opensFileDirectly(key: string) {
-  return key.startsWith("draft/") || key.startsWith("jurnal/") || key.startsWith("unity/") || key === "audio-assets";
+  return key.startsWith("draft/") || key.startsWith("jurnal/") || key.startsWith("unity/") || key.startsWith("audio-assets/");
 }
 
 const NAME_PREFIX = /^(scripts?|unity)$/i;
-const NAME_SUFFIX = /^(v(er(si(on)?)?)?\d+(\.\d+)*|\d+|final|fix|baru|new|copy|salinan|revisi|rev\d*)$/i;
+const NAME_SUFFIX = /^(v|ver|versi|version|\d+|final|fix|baru|new|copy|salinan|revisi|rev)$/i;
 
 /**
  * Nama kategori untuk file subfolder dinamis.
  * Kategori yang sudah ada diutamakan bila namanya muncul di nama file
  * ("Script Beribadah v2.zip" → "Beribadah"); selain itu kategori baru dari nama file
- * ("Script_Kebersihan-Diri.zip" → "Kebersihan Diri", "PlayerController.cs" → "Player Controller").
+ * ("Script_Kebersihan-Diri.zip" → "Kebersihan Diri", "PlayerController.cs" → "Player Controller",
+ * "Beribadah2.mp3" → "Beribadah"). Sinkron dengan fungsi slug di migrasi audio_dynamic_categories.
  */
 export function categoryNameFor(fileName: string, existing: SubFolder[]) {
   const dot = fileName.lastIndexOf(".");
   const base = (dot > 0 ? fileName.slice(0, dot) : fileName)
     .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/(\p{L})(\d)/gu, "$1 $2")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 
